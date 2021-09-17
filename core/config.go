@@ -21,12 +21,6 @@ var ExecPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
 
 var Config Yaml
 
-func init() {
-	ReadYaml(ExecPath+"/conf/", &Config, "https://raw.githubusercontent.com/cdle/sillyGirl/main/conf/demo_config.yaml")
-	InitReplies()
-	initToHandleMessage()
-}
-
 func ReadYaml(confDir string, conf interface{}, url string) {
 	path := confDir + "config.yaml"
 	if _, err := os.Stat(confDir); err != nil {

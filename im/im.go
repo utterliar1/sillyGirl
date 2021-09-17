@@ -1,5 +1,9 @@
 package im
 
+import (
+	"time"
+)
+
 type Sender interface {
 	GetUserID() int
 	GetChatID() int
@@ -17,8 +21,9 @@ type Sender interface {
 	GetContent() string
 	IsAdmin() bool
 	IsMedia() bool
-	Reply(interface{}) error
-	RecallGroupMessage() error
+	Reply(...interface{}) error
+	Delete() error
+	Disappear(lifetime ...time.Duration)
 }
 
 type Config struct {
@@ -97,10 +102,14 @@ func (sender *Faker) IsMedia() bool {
 	return false
 }
 
-func (sender *Faker) Reply(msg interface{}) error {
+func (sender *Faker) Reply(msgs ...interface{}) error {
 	return nil
 }
 
-func (sender *Faker) RecallGroupMessage() error {
+func (sender *Faker) Delete() error {
 	return nil
+}
+
+func (sender *Faker) Disappear(lifetime ...time.Duration) {
+
 }

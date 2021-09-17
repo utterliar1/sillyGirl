@@ -1,6 +1,11 @@
 package core
 
-import "os"
+import (
+	"os"
+	"time"
+)
+
+var Duration time.Duration
 
 func init() {
 	killp()
@@ -15,4 +20,5 @@ func init() {
 	InitReplies()
 	initToHandleMessage()
 	initSys()
+	Duration = time.Duration(sillyGirl.GetInt("duration", 5)) * time.Second
 }

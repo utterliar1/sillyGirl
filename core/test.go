@@ -15,16 +15,19 @@ func init() {
 			vv := strings.Split(v, " ")
 			tp, cd, ud := vv[0], Int(vv[1]), Int(vv[2])
 			msg := "重启完成。"
-			if cd == 0 {
-				Push(tp, ud, msg)
-			} else {
-				for i := 0; i < 10; i++ {
+			for i := 0; i < 10; i++ {
+				if cd == 0 {
+					if push, ok := Pushs[tp]; ok {
+						push(ud, msg)
+						break
+					}
+				} else {
 					if push, ok := GroupPushs[tp]; ok {
 						push(cd, ud, msg)
 						break
 					}
-					time.Sleep(time.Second)
 				}
+				time.Sleep(time.Second)
 			}
 			sillyGirl.Set("rebootInfo", "")
 		}
@@ -155,6 +158,14 @@ func initSys() {
 					return errors.New("空值")
 				}
 				return v
+			},
+		},
+		{
+			Admin: true,
+			Rules: []string{"send ? ? ?"},
+			Handle: func(s Sender) interface{} {
+				Push(s.Get(0), Int(s.Get(1)), s.Get(2))
+				return "发送成功呢"
 			},
 		},
 	})

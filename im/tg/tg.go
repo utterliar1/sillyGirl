@@ -16,6 +16,7 @@ type Sender struct {
 	matches  [][]string
 	Duration *time.Duration
 	deleted  bool
+	reply    *tb.Message
 }
 
 var tg = core.NewBucket("tg")
@@ -133,11 +134,22 @@ func (sender *Sender) IsMedia() bool {
 	return false
 }
 
-func (sender *Sender) Reply(msgs ...interface{}) error {
+func (sender *Sender) Reply(msgs ...interface{}) (int, error) {
 	msg := msgs[0]
-	if len(msgs) > 1 {
-		du := msgs[1].(time.Duration)
-		sender.Duration = &du
+	var edit *core.Edit
+	var replace *core.Replace
+	for _, item := range msgs {
+		switch item.(type) {
+		case core.Edit:
+			v := item.(core.Edit)
+			edit = &v
+		case core.Replace:
+			v := item.(core.Replace)
+			replace = &v
+		case time.Duration:
+			du := item.(time.Duration)
+			sender.Duration = &du
+		}
 	}
 	var rt *tb.Message
 	var r tb.Recipient
@@ -157,6 +169,26 @@ func (sender *Sender) Reply(msgs ...interface{}) error {
 	case []byte:
 		rt, err = b.Send(r, string(msg.([]byte)), options...)
 	case string:
+		if edit != nil && sender.reply != nil {
+			if *edit == 0 {
+				if sender.reply != nil {
+					b.Edit(sender.reply, msg.(string))
+				}
+			} else {
+				b.Edit(&tb.Message{
+					ID: int(*edit),
+				}, msg.(string))
+			}
+			if sender.reply == nil {
+				return 0, nil
+			}
+			return sender.reply.ID, nil
+		}
+		if replace != nil {
+			b.Delete(&tb.Message{
+				ID: int(*edit),
+			})
+		}
 		rt, err = b.Send(r, msg.(string), options...)
 	case *http.Response:
 		_, err = b.SendAlbum(r, tb.Album{&tb.Photo{File: tb.FromReader(msg.(*http.Response).Body)}}, options...)
@@ -176,7 +208,13 @@ func (sender *Sender) Reply(msgs ...interface{}) error {
 			b.Delete(rt)
 		}
 	}
-	return err
+	if rt != nil && sender.reply == nil {
+		sender.reply = rt
+	}
+	if sender.reply != nil {
+		return sender.reply.ID, err
+	}
+	return 0, nil
 }
 
 func (sender *Sender) Delete() error {

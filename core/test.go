@@ -6,8 +6,6 @@ import (
 	"io/ioutil"
 	"strings"
 	"time"
-
-	"github.com/cdle/sillyGirl/im"
 )
 
 func init() {
@@ -16,7 +14,7 @@ func init() {
 		if v != "" {
 			vv := strings.Split(v, " ")
 			tp, cd, ud := vv[0], Int(vv[1]), Int(vv[2])
-			msg := name() + "重启完成。"
+			msg := "重启完成。"
 			if cd == 0 {
 				Push(tp, ud, msg)
 			} else {
@@ -37,17 +35,17 @@ func initSys() {
 	AddCommand("", []Function{
 		{
 			Rules: []string{"raw ^name$"},
-			Handle: func(s im.Sender) interface{} {
+			Handle: func(s Sender) interface{} {
 				s.Disappear()
 				return name()
 			},
 		},
 		{
 			Rules: []string{"raw ^升级$"},
+			Cron:  "41 * * * *",
 			Admin: true,
-			Handle: func(s im.Sender) interface{} {
-				s.Disappear()
-				s.Reply(name() + "开始检查核心功能。")
+			Handle: func(s Sender) interface{} {
+				s.Reply("开始检查核心更新...", E)
 				update := false
 				record := func(b bool) {
 					if !update && b {
@@ -59,35 +57,38 @@ func initSys() {
 					return err
 				}
 				if !need {
-					s.Reply(name() + "核心功能已是最新。")
+					s.Reply("核心功能已是最新。", E)
 				} else {
 					record(need)
-					s.Reply(name() + "核心功能发现更新。")
+					s.Reply("核心功能发现更新。", E)
 				}
 				files, _ := ioutil.ReadDir(ExecPath + "/develop")
 				for _, f := range files {
 					if f.IsDir() {
+						s.Reply("检查扩展"+f.Name()+"更新...", E)
 						need, err := GitPull("/develop/" + f.Name())
 						if err != nil {
-							s.Reply(name() + "扩展" + f.Name() + "更新错误" + err.Error() + "。")
+							s.Reply("扩展"+f.Name()+"更新错误"+err.Error()+"。", E)
 						}
 						if !need {
-							s.Reply(name() + "扩展" + f.Name() + "已是最新。")
+							s.Reply("扩展"+f.Name()+"已是最新。", E)
 						} else {
 							record(need)
-							s.Reply(name() + "扩展" + f.Name() + "发现更新。")
+							s.Reply("扩展"+f.Name()+"发现更新。", E)
 						}
 					}
 				}
 				if !update {
-					return name() + "没有更新。"
+					s.Reply("没有更新。", E)
+					return nil
 				}
-				s.Reply(name() + "正在编译程序。")
+				s.Reply("正在编译程序...", E)
 				if err := CompileCode(); err != nil {
 					return err
 				}
-				s.Reply(name()+"编译程序完毕。", time.Duration(0))
+				s.Reply("编译程序完毕。", E)
 				sillyGirl.Set("rebootInfo", fmt.Sprintf("%v %v %v", s.GetImType(), s.GetChatID(), s.GetUserID()))
+				s.Reply("更新完成，即将重启！", E)
 				Daemon()
 				return nil
 			},
@@ -95,16 +96,17 @@ func initSys() {
 		{
 			Rules: []string{"raw ^重启$"},
 			Admin: true,
-			Handle: func(s im.Sender) interface{} {
+			Handle: func(s Sender) interface{} {
 				s.Disappear()
 				sillyGirl.Set("rebootInfo", fmt.Sprintf("%v %v %v", s.GetImType(), s.GetChatID(), s.GetUserID()))
+				s.Reply("即将重启！", E)
 				Daemon()
 				return nil
 			},
 		},
 		{
 			Rules: []string{"raw ^命令$"},
-			Handle: func(s im.Sender) interface{} {
+			Handle: func(s Sender) interface{} {
 				s.Disappear()
 				ss := []string{}
 				for _, f := range functions {
@@ -116,7 +118,7 @@ func initSys() {
 		{
 			Admin: true,
 			Rules: []string{"set ? ? ?"},
-			Handle: func(s im.Sender) interface{} {
+			Handle: func(s Sender) interface{} {
 				s.Disappear()
 				b := Bucket(s.Get(0))
 				if !IsBucket(b) {
@@ -129,7 +131,7 @@ func initSys() {
 		{
 			Admin: true,
 			Rules: []string{"delete ? ?"},
-			Handle: func(s im.Sender) interface{} {
+			Handle: func(s Sender) interface{} {
 				s.Disappear()
 				b := Bucket(s.Get(0))
 				if !IsBucket(b) {
@@ -142,7 +144,7 @@ func initSys() {
 		{
 			Admin: true,
 			Rules: []string{"get ? ?"},
-			Handle: func(s im.Sender) interface{} {
+			Handle: func(s Sender) interface{} {
 				s.Disappear()
 				b := Bucket(s.Get(0))
 				if !IsBucket(b) {

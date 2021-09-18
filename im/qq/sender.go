@@ -149,11 +149,14 @@ func (sender *Sender) IsMedia() bool {
 	return false
 }
 
-func (sender *Sender) Reply(msgs ...interface{}) error {
+func (sender *Sender) Reply(msgs ...interface{}) (int, error) {
 	msg := msgs[0]
-	if len(msgs) > 1 {
-		du := msgs[1].(time.Duration)
-		sender.Duration = &du
+	for _, item := range msgs {
+		switch item.(type) {
+		case time.Duration:
+			du := item.(time.Duration)
+			sender.Duration = &du
+		}
 	}
 	switch sender.Message.(type) {
 	case *message.PrivateMessage:
@@ -222,7 +225,7 @@ func (sender *Sender) Reply(msgs ...interface{}) error {
 
 		}
 	}
-	return nil
+	return 0, nil
 }
 
 func (sender *Sender) Delete() error {

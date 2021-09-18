@@ -1,4 +1,4 @@
-package im
+package core
 
 import (
 	"time"
@@ -21,18 +21,16 @@ type Sender interface {
 	GetContent() string
 	IsAdmin() bool
 	IsMedia() bool
-	Reply(...interface{}) error
+	Reply(...interface{}) (int, error)
 	Delete() error
 	Disappear(lifetime ...time.Duration)
 }
 
-type Config struct {
-	Type         string
-	Masters      []int
-	Groups       []int
-	Token        string
-	CustomConfig string
-}
+type Edit int
+type Replace int
+
+var E Edit
+var R Replace
 
 type Faker struct {
 	Message interface{}
@@ -102,8 +100,8 @@ func (sender *Faker) IsMedia() bool {
 	return false
 }
 
-func (sender *Faker) Reply(msgs ...interface{}) error {
-	return nil
+func (sender *Faker) Reply(msgs ...interface{}) (int, error) {
+	return 0, nil
 }
 
 func (sender *Faker) Delete() error {

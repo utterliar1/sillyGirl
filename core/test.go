@@ -2,11 +2,36 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"github.com/cdle/sillyGirl/im"
 )
+
+func init() {
+	go func() {
+		v := sillyGirl.Get("rebootInfo")
+		if v != "" {
+			vv := strings.Split(v, " ")
+			tp, cd, ud := vv[0], Int(vv[1]), Int(vv[2])
+			msg := name() + "重启完成。"
+			if cd == 0 {
+				Push(tp, ud, msg)
+			} else {
+				for i := 0; i < 10; i++ {
+					if push, ok := GroupPushs[tp]; ok {
+						push(cd, ud, msg)
+						break
+					}
+					time.Sleep(time.Second)
+				}
+			}
+			sillyGirl.Set("rebootInfo", "")
+		}
+	}()
+}
 
 func initSys() {
 	AddCommand("", []Function{
@@ -34,8 +59,10 @@ func initSys() {
 					return err
 				}
 				if !need {
-					record(need)
 					s.Reply(name() + "核心功能已是最新。")
+				} else {
+					record(need)
+					s.Reply(name() + "核心功能发现更新。")
 				}
 				files, _ := ioutil.ReadDir(ExecPath + "/develop")
 				for _, f := range files {
@@ -45,19 +72,22 @@ func initSys() {
 							s.Reply(name() + "扩展" + f.Name() + "更新错误" + err.Error() + "。")
 						}
 						if !need {
-							record(need)
 							s.Reply(name() + "扩展" + f.Name() + "已是最新。")
+						} else {
+							record(need)
+							s.Reply(name() + "扩展" + f.Name() + "发现更新。")
 						}
 					}
 				}
-				if !need {
+				if !update {
 					return name() + "没有更新。"
 				}
 				s.Reply(name() + "正在编译程序。")
 				if err := CompileCode(); err != nil {
 					return err
 				}
-				s.Reply(name() + "编译程序完毕。")
+				s.Reply(name()+"编译程序完毕。", time.Duration(0))
+				sillyGirl.Set("rebootInfo", fmt.Sprintf("%v %v %v", s.GetImType(), s.GetChatID(), s.GetUserID()))
 				Daemon()
 				return nil
 			},
@@ -67,6 +97,7 @@ func initSys() {
 			Admin: true,
 			Handle: func(s im.Sender) interface{} {
 				s.Disappear()
+				sillyGirl.Set("rebootInfo", fmt.Sprintf("%v %v %v", s.GetImType(), s.GetChatID(), s.GetUserID()))
 				Daemon()
 				return nil
 			},

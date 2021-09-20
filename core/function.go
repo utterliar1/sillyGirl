@@ -94,13 +94,14 @@ func handleMessage(sender Sender) {
 			if matched {
 				if function.Admin && !sender.IsAdmin() {
 					sender.Reply("没有权限操作")
+					sender.Finish()
 					return
 				}
 				rt := function.Handle(sender)
 				if rt != nil {
 					sender.Reply(rt)
-					sender.Finish()
 				}
+				sender.Finish()
 				return
 			}
 		}

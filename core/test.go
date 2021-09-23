@@ -14,6 +14,11 @@ func init() {
 		if v != "" {
 			vv := strings.Split(v, " ")
 			tp, cd, ud := vv[0], Int(vv[1]), Int(vv[2])
+			if tp == "fake" {
+				time.Sleep(time.Second * 5)
+				NotifyMasters("自动更新完成。")
+				return
+			}
 			msg := "重启完成。"
 			for i := 0; i < 10; i++ {
 				if cd == 0 {
@@ -45,7 +50,7 @@ func initSys() {
 		},
 		{
 			Rules: []string{"raw ^升级$"},
-			Cron:  "41 * * * *",
+			Cron:  "*/1 * * * *",
 			Admin: true,
 			Handle: func(s Sender) interface{} {
 				s.Reply("开始检查核心更新...", E)
@@ -63,7 +68,7 @@ func initSys() {
 					s.Reply("核心功能已是最新。", E)
 				} else {
 					record(need)
-					s.Reply("核心功能发现更新。", E)
+					s.Reply("核心功能发现更新。", E, N)
 				}
 				files, _ := ioutil.ReadDir(ExecPath + "/develop")
 				for _, f := range files {
@@ -77,7 +82,7 @@ func initSys() {
 							s.Reply("扩展"+f.Name()+"已是最新。", E)
 						} else {
 							record(need)
-							s.Reply("扩展"+f.Name()+"发现更新。", E)
+							s.Reply("扩展"+f.Name()+"发现更新。", E, N)
 						}
 					}
 				}

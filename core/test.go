@@ -14,10 +14,11 @@ func init() {
 		if v != "" {
 			vv := strings.Split(v, " ")
 			tp, cd, ud := vv[0], Int(vv[1]), Int(vv[2])
-			// if tp == "fake" {
-			// 	NotifyMasters("自动更新完成。")
-			// 	return
-			// }
+			if tp == "fake" && sillyGirl.GetBool("update_notify", false) == true { //
+				time.Sleep(time.Second * 10)
+				NotifyMasters("自动更新完成。")
+				return
+			}
 			msg := "重启完成。"
 			for i := 0; i < 10; i++ {
 				if cd == 0 {

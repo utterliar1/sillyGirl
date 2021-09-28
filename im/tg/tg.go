@@ -2,10 +2,10 @@ package tg
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
+	"github.com/astaxie/beego/httplib"
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/cdle/sillyGirl/core"
 	tb "gopkg.in/tucnak/telebot.v2"
@@ -168,6 +168,7 @@ func (sender *Sender) Reply(msgs ...interface{}) (int, error) {
 			options = []interface{}{&tb.SendOptions{ReplyTo: sender.Message}}
 		}
 	}
+	fmt.Println(msg, "+++")
 	var err error
 	switch msg.(type) {
 	case error:
@@ -196,10 +197,17 @@ func (sender *Sender) Reply(msgs ...interface{}) (int, error) {
 			})
 		}
 		rt, err = b.Send(r, msg.(string), options...)
-	case *http.Response:
-		rts, err := b.SendAlbum(r, tb.Album{&tb.Photo{File: tb.FromReader(msg.(*http.Response).Body)}}, options...)
-		if err == nil {
-			rt = &rts[0]
+	case core.ImageUrl:
+		fmt.Println(msg.(core.ImageUrl), "+++")
+		rsp, err := httplib.Get(string(msg.(core.ImageUrl))).Response()
+		if err != nil {
+			sender.Reply(err)
+			return 0, nil
+		} else {
+			rts, err := b.SendAlbum(r, tb.Album{&tb.Photo{File: tb.FromReader(rsp.Body)}}, options...)
+			if err == nil {
+				rt = &rts[0]
+			}
 		}
 	}
 	if err != nil {

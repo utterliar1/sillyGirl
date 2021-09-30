@@ -50,11 +50,16 @@ func AddCommand(prefix string, cmds []Function) {
 				cmds[j].Rules[i] = strings.Replace(cmds[j].Rules[i], "raw ", "", -1)
 				continue
 			}
+			if strings.Contains(cmds[j].Rules[i], "$") {
+				continue
+			}
 			if prefix != "" {
 				cmds[j].Rules[i] = prefix + `\s+` + cmds[j].Rules[i]
 			}
+
 			cmds[j].Rules[i] = strings.Replace(cmds[j].Rules[i], "(", `[(]`, -1)
 			cmds[j].Rules[i] = strings.Replace(cmds[j].Rules[i], ")", `[)]`, -1)
+			cmds[j].Rules[i] = regexp.MustCompile(`\?$`).ReplaceAllString(cmds[j].Rules[i], `(.+)`)
 			cmds[j].Rules[i] = strings.Replace(cmds[j].Rules[i], " ", `\s+`, -1)
 			cmds[j].Rules[i] = strings.Replace(cmds[j].Rules[i], "?", `(\S+)`, -1)
 			cmds[j].Rules[i] = "^" + cmds[j].Rules[i] + "$"
@@ -94,8 +99,8 @@ func handleMessage(sender Sender) {
 			}
 			if matched {
 				if function.Admin && !sender.IsAdmin() {
-                                        sender.Delete()
-                                        sender.Disappear()
+					sender.Delete()
+					sender.Disappear()
 					sender.Reply("没有权限操作")
 					sender.Finish()
 					return

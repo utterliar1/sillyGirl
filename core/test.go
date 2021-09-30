@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -54,6 +56,9 @@ func initSys() {
 			Cron:  "*/1 * * * *",
 			Admin: true,
 			Handle: func(s Sender) interface{} {
+				if s.GetImType() == "fake" && !sillyGirl.GetBool("auto_update", true) {
+					return nil
+				}
 				s.Reply("开始检查核心更新...", E)
 				update := false
 				record := func(b bool) {
@@ -219,6 +224,37 @@ func initSys() {
 			Rules: []string{"raw ^started_at$"},
 			Handle: func(s Sender) interface{} {
 				return sillyGirl.Get("started_at")
+			},
+		},
+		{
+			Rules: []string{"^守护傻妞"},
+			Handle: func(s Sender) interface{} {
+				service := `
+[Service]
+Type=forking
+ExecStart=` + ExecPath + "/sillyGirl" + ` -d
+PIDFile=/var/run/sillyGirl.pid
+Restart=always
+User=root
+Group=root
+				
+[Install]
+WantedBy=multi-user.target
+Alias=sillyGirl.service`
+				data, err := exec.Command("sh", "-c", "type systemctl").Output()
+				if err != nil {
+					s.Reply(err)
+					return nil
+				}
+
+				if !strings.Contains(string(data), "bin") {
+					s.Reply(data)
+					return nil
+				}
+				os.WriteFile("/usr/lib/systemd/system/sillyGirl.service", []byte(service), 0o644)
+				exec.Command("systemctl", "disable", string(sillyGirl)).Output()
+				exec.Command("systemctl", "enable", string(sillyGirl)).Output()
+				return "电脑重启后生效。"
 			},
 		},
 	})

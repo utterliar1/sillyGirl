@@ -88,7 +88,10 @@ func init() {
 			return otto.Value{}
 		}
 		if strings.Contains(dataType, "json") {
-			obj, _ := otto.New().Object(fmt.Sprintf(`(%s)`, data))
+			obj, err := otto.New().Object(fmt.Sprintf(`(%s)`, data))
+			if err != nil {
+				return otto.Value{}
+			}
 			return obj
 		}
 		result, err := otto.ToValue(data)
@@ -146,11 +149,11 @@ func init() {
 			vm.Set("push", push)
 			vm.Set("sendText", func(call otto.Value) interface{} {
 				s.Reply(call.String())
-				return nil
+				return otto.Value{}
 			})
 			vm.Set("sendImage", func(call otto.Value) interface{} {
 				s.Reply(ImageUrl(call.String()))
-				return nil
+				return otto.Value{}
 			})
 			rt, err := vm.Run(template + `
 ""

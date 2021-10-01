@@ -15,7 +15,7 @@ import (
 
 var BeforeStop = []func(){}
 
-var pidf = "/var/run/sillyGirl.pid"
+var pidf = "/var/run/" + pname + ".pid"
 
 func Daemon() {
 	for _, bs := range BeforeStop {
@@ -60,6 +60,7 @@ func GitPull(filename string) (bool, error) {
 }
 
 func CompileCode() error {
+
 	cmd := exec.Command("sh", "-c", "cd "+ExecPath+" && go build -o "+pname)
 	_, err := cmd.Output()
 	if err != nil {

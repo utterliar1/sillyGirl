@@ -17,6 +17,7 @@ type Sender struct {
 	Duration *time.Duration
 	deleted  bool
 	reply    *tb.Message
+	goon     bool
 }
 
 var tg = core.NewBucket("tg")
@@ -257,10 +258,10 @@ func (sender *Sender) Finish() {
 
 }
 
-func (sender *Sender) GetUserName() string {
-	name := sender.Message.Sender.Username
-	if name == "" {
-		name = fmt.Sprint(sender.Message.Sender.ID)
-	}
-	return name
+func (sender *Sender) Continue() {
+	sender.goon = true
+}
+
+func (sender *Sender) IsContinue() bool {
+	return sender.goon
 }

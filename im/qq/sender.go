@@ -17,6 +17,7 @@ type Sender struct {
 	matches  [][]string
 	Duration *time.Duration
 	deleted  bool
+	goon     bool
 }
 
 func (sender *Sender) GetContent() string {
@@ -72,19 +73,6 @@ func (sender *Sender) GetMessageID() int {
 		id = int(sender.Message.(*message.GroupMessage).Id)
 	}
 	return id
-}
-
-func (sender *Sender) GetUsername() string {
-	name := ""
-	switch sender.Message.(type) {
-	case *message.PrivateMessage:
-		name = sender.Message.(*message.PrivateMessage).Sender.Nickname
-	case *message.TempMessage:
-		name = sender.Message.(*message.TempMessage).Sender.Nickname
-	case *message.GroupMessage:
-		name = sender.Message.(*message.GroupMessage).Sender.Nickname
-	}
-	return name
 }
 
 func (sender *Sender) IsReply() bool {
@@ -279,7 +267,7 @@ func (sender *Sender) Finish() {
 
 }
 
-func (sender *Sender) GetUserName() string {
+func (sender *Sender) GetUsername() string {
 
 	switch sender.Message.(type) {
 	case *message.PrivateMessage:
@@ -302,4 +290,12 @@ func (sender *Sender) GetUserName() string {
 		return m.Sender.Nickname
 	}
 	return ""
+}
+
+func (sender *Sender) Continue() {
+	sender.goon = true
+}
+
+func (sender *Sender) IsContinue() bool {
+	return sender.goon
 }

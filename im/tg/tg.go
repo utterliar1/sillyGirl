@@ -47,6 +47,7 @@ func init() {
 			URL:    tg.Get("url"),
 			Token:  token,
 			Poller: &tb.LongPoller{Timeout: 10 * time.Second},
+			// ParseMode: tb.ModeMarkdownV2,
 		})
 
 		if err != nil {
@@ -58,26 +59,42 @@ func init() {
 		}
 		core.GroupPushs["tg"] = func(i, j int, s string) {
 			paths := []string{}
+			ct := &tb.Chat{ID: int64(i)}
 			for _, v := range regexp.MustCompile(`\[CQ:image,file=([^\[\]]+)\]`).FindAllStringSubmatch(s, -1) {
 				paths = append(paths, core.ExecPath+"/data/images/"+v[1])
-				s = strings.Replace(s, fmt.Sprintf(v[0]), "", -1)
+				s = strings.Replace(s, fmt.Sprintf(`[CQ:image,file=%s]`, v[1]), "", -1)
 			}
-			ct := &tb.Chat{ID: int64(i)}
-			b.Send(ct, s)
-			for _, path := range paths {
-				func() {
+			{
+				t := []string{}
+				for _, v := range strings.Split(s, "\n") {
+					if v != "" {
+						t = append(t, v)
+					}
+				}
+				s = strings.Join(t, "\n")
+			}
+			if len(paths) > 0 {
+				is := []tb.InputMedia{}
+				for index, path := range paths {
 					data, err := os.ReadFile(path)
 					if err == nil {
 						url := regexp.MustCompile("(https.*)").FindString(string(data))
 						if url != "" {
 							rsp, err := httplib.Get(url).Response()
 							if err == nil {
-								b.SendAlbum(ct, tb.Album{&tb.Photo{File: tb.FromReader(rsp.Body)}})
+								i := &tb.Photo{File: tb.FromReader(rsp.Body)}
+								if index == 0 {
+									i.Caption = s
+								}
+								is = append(is, i)
 							}
 						}
 					}
-				}()
+				}
+				b.SendAlbum(ct, is)
+				return
 			}
+			b.Send(ct, s)
 		}
 		b.Handle(tb.OnText, Handler)
 		logs.Info("监听telegram机器人")

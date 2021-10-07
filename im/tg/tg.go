@@ -1,6 +1,7 @@
 package tg
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -64,6 +65,7 @@ func init() {
 				paths = append(paths, core.ExecPath+"/data/images/"+v[1])
 				s = strings.Replace(s, fmt.Sprintf(`[CQ:image,file=%s]`, v[1]), "", -1)
 			}
+			s = regexp.MustCompile(`\[CQ:([^\[\]]+)\]`).ReplaceAllString(s, "")
 			{
 				t := []string{}
 				for _, v := range strings.Split(s, "\n") {
@@ -80,14 +82,19 @@ func init() {
 					if err == nil {
 						url := regexp.MustCompile("(https.*)").FindString(string(data))
 						if url != "" {
-							rsp, err := httplib.Get(url).Response()
-							if err == nil {
-								i := &tb.Photo{File: tb.FromReader(rsp.Body)}
-								if index == 0 {
-									i.Caption = s
-								}
-								is = append(is, i)
+							// rsp, err := httplib.Get(url).Response()
+							// if err == nil {
+							// 	i := &tb.Photo{File: tb.FromReader(rsp.Body)}
+							// 	if index == 0 {
+							// 		i.Caption = s
+							// 	}
+							// 	is = append(is, i)
+							// }
+							i := &tb.Photo{File: tb.FromURL(url)}
+							if index == 0 {
+								i.Caption = s
 							}
+							is = append(is, i)
 						}
 					}
 				}
@@ -97,11 +104,19 @@ func init() {
 			b.Send(ct, s)
 		}
 		b.Handle(tb.OnPhoto, func(m *tb.Message) {
+			data, _ := json.Marshal(m.Photo)
+			// b.Send(m.Chat, )
+			fmt.Println(string(data))
+			// m.
+			// 	b.Send(m.Chat, m.Caption+" "+m.AlbumID)
+			// b.Download()
+
 			// b.Download(&m.Photo.File,"")
 			// 	m.Text = fmt.Sprintf(`[CQ:image,url=%s]`, m.Photo.FileURL) + m.Caption
 			// 	m.Photo.FileReader.
 			// 	core.NotifyMasters(fmt.Sprintf(`[CQ:image,url=%s]`, m.Photo.FileURL) + m.Caption)
 			// Handler(m)
+			// b.Forward(m.Chat, m)
 		})
 		b.Handle(tb.OnText, Handler)
 		logs.Info("监听telegram机器人")

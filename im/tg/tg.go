@@ -1,7 +1,6 @@
 package tg
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -91,6 +90,7 @@ func init() {
 							// 	is = append(is, i)
 							// }
 							i := &tb.Photo{File: tb.FromURL(url)}
+
 							if index == 0 {
 								i.Caption = s
 							}
@@ -104,20 +104,38 @@ func init() {
 			b.Send(ct, s)
 		}
 		b.Handle(tb.OnPhoto, func(m *tb.Message) {
-			data, _ := json.Marshal(m.Photo)
-			// b.Send(m.Chat, )
-			fmt.Println(string(data))
-			// m.
-			// 	b.Send(m.Chat, m.Caption+" "+m.AlbumID)
-			// b.Download()
-
-			// b.Download(&m.Photo.File,"")
-			// 	m.Text = fmt.Sprintf(`[CQ:image,url=%s]`, m.Photo.FileURL) + m.Caption
-			// 	m.Photo.FileReader.
-			// 	core.NotifyMasters(fmt.Sprintf(`[CQ:image,url=%s]`, m.Photo.FileURL) + m.Caption)
-			// Handler(m)
-			// b.Forward(m.Chat, m)
+			filename := fmt.Sprint(time.Now().UnixNano()) + ".image"
+			filepath := core.ExecPath + "/data/images/" + filename
+			if b.Download(&m.Photo.File, filepath) == nil {
+				m.Text = fmt.Sprintf(`[TG:image,file=%s]`, filename) + m.Caption
+				Handler(m)
+			}
 		})
+		// b.Handle(tb.OnSticker, func(m *tb.Message) {
+		// 	buf := new(bytes.Buffer)
+		// 	buf.ReadFrom(m.Sticker.FileReader)
+		// 	img, err := webp.Decode(buf)
+		// 	if err != nil {
+
+		// 		return
+		// 	}
+		// 	buf.Reset()
+		// 	imgBuf := buf
+		// 	err = png.Encode(imgBuf, img)
+		// 	if err != nil {
+		// 		return
+		// 	}
+		// 	filename := fmt.Sprint(time.Now().UnixNano()) + ".image"
+		// 	filepath := core.ExecPath + "/data/images/" + filename
+		// 	f, err := os.Create(filepath)
+		// 	if err != nil {
+		// 		return
+		// 	}
+		// 	f.Write(imgBuf.Bytes())
+		// 	f.Close()
+		// 	m.Text = fmt.Sprintf(`[TG:image,file=%s]`, filename) + m.Caption
+		// 	Handler(m)
+		// })
 		b.Handle(tb.OnText, Handler)
 		logs.Info("监听telegram机器人")
 		b.Start()

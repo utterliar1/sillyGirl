@@ -1,6 +1,9 @@
 package core
 
 import (
+	"errors"
+	"fmt"
+	"sync"
 	"time"
 )
 
@@ -27,6 +30,7 @@ type Sender interface {
 	Finish()
 	Continue()
 	IsContinue() bool
+	Await(Sender, func(string, error) interface{}, ...interface{})
 }
 
 type Edit int
@@ -130,6 +134,7 @@ func (sender *Faker) Finish() {
 type BaseSender struct {
 	matches [][]string
 	goon    bool
+	child   Sender
 }
 
 func (sender *BaseSender) SetMatch(ss []string) {
@@ -195,4 +200,69 @@ func (sender *BaseSender) IsReply() bool {
 
 func (sender *BaseSender) GetMessageID() int {
 	return 0
+}
+
+func (sender *BaseSender) GetUserID() interface{} {
+	return nil
+}
+func (sender *BaseSender) GetChatID() interface{} {
+	return nil
+}
+func (sender *BaseSender) GetImType() string {
+	return ""
+}
+
+var TimeOutError = errors.New("指令超时")
+var InterruptError = errors.New("被其他指令中断")
+
+var waits sync.Map
+
+type Carry struct {
+	Chan    chan interface{}
+	Pattern string
+	Result  chan interface{}
+}
+
+func (_ *BaseSender) Await(sender Sender, callback func(string, error) interface{}, params ...interface{}) {
+	c := Carry{}
+	timeout := time.Second * 20
+	for _, param := range params {
+		switch param.(type) {
+		case string:
+			c.Pattern = param.(string)
+		case time.Duration:
+			timeout = param.(time.Duration)
+		case func() string:
+			callback = param.(func(string, error) interface{})
+		}
+	}
+	if callback == nil {
+		return
+	}
+	if c.Pattern == "" {
+		return
+	}
+	c.Chan = make(chan interface{}, 1)
+	c.Result = make(chan interface{}, 1)
+	key := fmt.Sprintf("u=%v&c=%v&i=%v", sender.GetUserID(), sender.GetChatID(), sender.GetImType())
+	if oc, ok := waits.LoadOrStore(key, c); ok {
+		oc.(Carry).Chan <- InterruptError
+	}
+	fmt.Println(key)
+	fmt.Println(waits.Load(key))
+	select {
+	case result := <-c.Chan:
+		switch result.(type) {
+		case string:
+			waits.Delete(key)
+			c.Result <- callback(result.(string), nil)
+			return
+		case error:
+			waits.Delete(key)
+			c.Result <- callback("", result.(error))
+		}
+	case <-time.After(timeout):
+		waits.Delete(key)
+		c.Result <- callback("", TimeOutError)
+	}
 }

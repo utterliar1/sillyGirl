@@ -30,7 +30,7 @@ type Sender interface {
 	Finish()
 	Continue()
 	IsContinue() bool
-	Await(Sender, func(string, error) interface{}, ...interface{})
+	Await(Sender, func(string, Sender, error) interface{}, ...interface{})
 }
 
 type Edit int
@@ -221,19 +221,23 @@ type Carry struct {
 	Chan    chan interface{}
 	Pattern string
 	Result  chan interface{}
+	Sender  Sender
 }
 
-func (_ *BaseSender) Await(sender Sender, callback func(string, error) interface{}, params ...interface{}) {
-	c := Carry{}
+func (_ *BaseSender) Await(sender Sender, callback func(string, Sender, error) interface{}, params ...interface{}) {
+	c := &Carry{}
 	timeout := time.Second * 20
 	for _, param := range params {
 		switch param.(type) {
 		case string:
 			c.Pattern = param.(string)
 		case time.Duration:
-			timeout = param.(time.Duration)
+			du := param.(time.Duration)
+			if du != 0 {
+				timeout = du
+			}
 		case func() string:
-			callback = param.(func(string, error) interface{})
+			callback = param.(func(string, Sender, error) interface{})
 		}
 	}
 	if callback == nil {
@@ -246,7 +250,7 @@ func (_ *BaseSender) Await(sender Sender, callback func(string, error) interface
 	c.Result = make(chan interface{}, 1)
 	key := fmt.Sprintf("u=%v&c=%v&i=%v", sender.GetUserID(), sender.GetChatID(), sender.GetImType())
 	if oc, ok := waits.LoadOrStore(key, c); ok {
-		oc.(Carry).Chan <- InterruptError
+		oc.(*Carry).Chan <- InterruptError
 	}
 	fmt.Println(key)
 	fmt.Println(waits.Load(key))
@@ -255,14 +259,14 @@ func (_ *BaseSender) Await(sender Sender, callback func(string, error) interface
 		switch result.(type) {
 		case string:
 			waits.Delete(key)
-			c.Result <- callback(result.(string), nil)
+			c.Result <- callback(result.(string), c.Sender, nil)
 			return
 		case error:
 			waits.Delete(key)
-			c.Result <- callback("", result.(error))
+			c.Result <- callback("", c.Sender, result.(error))
 		}
 	case <-time.After(timeout):
 		waits.Delete(key)
-		c.Result <- callback("", TimeOutError)
+		c.Result <- callback("", c.Sender, TimeOutError)
 	}
 }

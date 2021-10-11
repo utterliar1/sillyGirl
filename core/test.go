@@ -154,9 +154,8 @@ func initSys() {
 		},
 		{
 			Admin: true,
-			Rules: []string{"set ? ? ?"},
+			Rules: []string{"set ? ? ?", "delete ? ?"},
 			Handle: func(s Sender) interface{} {
-				// s.Disappear()
 				b := Bucket(s.Get(0))
 				if !IsBucket(b) {
 					return errors.New("不存在的存储桶")
@@ -164,7 +163,7 @@ func initSys() {
 				old := b.Get(s.Get(1))
 				b.Set(s.Get(1), s.Get(2))
 				go func() {
-					s.Await(s, func(_ string, e error) interface{} {
+					s.Await(s, func(_ string, _ Sender, e error) interface{} {
 						if e != nil {
 							return nil
 						}
@@ -172,20 +171,7 @@ func initSys() {
 						return "已撤回。"
 					}, "^撤回$", time.Second*60)
 				}()
-				return "操作成功，如果你后悔了，请在60s内对我说\"撤回\"，即可撤销本次操作。"
-			},
-		},
-		{
-			Admin: true,
-			Rules: []string{"delete ? ?"},
-			Handle: func(s Sender) interface{} {
-				s.Disappear()
-				b := Bucket(s.Get(0))
-				if !IsBucket(b) {
-					return errors.New("不存在的存储桶")
-				}
-				b.Set(s.Get(1), "")
-				return "删除成功"
+				return "操作成功，在60s内可\"撤回\"。"
 			},
 		},
 		{
@@ -199,7 +185,7 @@ func initSys() {
 				}
 				v := b.Get(s.Get(1))
 				if v == "" {
-					return errors.New("空值")
+					return errors.New("无值")
 				}
 				return v
 			},

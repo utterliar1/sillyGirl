@@ -6,8 +6,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/beego/beego/v2/adapter/httplib"
 )
 
 func init() {
@@ -163,7 +166,7 @@ func initSys() {
 				old := b.Get(s.Get(1))
 				b.Set(s.Get(1), s.Get(2))
 				go func() {
-					s.Await(s, func(_ string, _ Sender, e error) interface{} {
+					s.Await(s, func(_ Sender, e error) interface{} {
 						if e != nil {
 							return nil
 						}
@@ -251,6 +254,47 @@ Alias=sillyGirl.service`
 				exec.Command("systemctl", "disable", string(sillyGirl)).Output()
 				exec.Command("systemctl", "enable", string(sillyGirl)).Output()
 				return "电脑重启后生效。"
+			},
+		},
+		{
+			Rules: []string{"raw .*pornhub.*"},
+			Handle: func(s Sender) interface{} {
+				s.Reply("你已涉黄永久禁言。")
+				for {
+					s.Await(s, func(s2 Sender, _ error) interface{} {
+						s2.Disappear(time.Millisecond * 50)
+						return "你已被禁言。"
+					}, `[\s\S]*`, time.Duration(time.Second*300))
+				}
+			},
+		},
+		{
+			Rules: []string{"raw ^成语接龙$"},
+			Handle: func(s Sender) interface{} {
+				id := fmt.Sprintf("%v", s.GetUserID())
+				data, err := httplib.Get("http://hm.suol.cc/API/cyjl.php?id=" + id + "&msg=开始成语接龙").String()
+				if err != nil {
+					s.Reply(err)
+				}
+				s.Reply(data)
+				for {
+					s.Await(s, func(s2 Sender, err error) interface{} {
+						if err != nil {
+							s.Reply(err)
+						}
+						cy := regexp.MustCompile("^[一-龥]{4}$").FindString(s2.GetContent())
+						if cy == "" {
+							s2.Disappear(time.Millisecond * 500)
+							return "请认真接龙，一站到底！"
+						}
+						data, err := httplib.Get("http://hm.suol.cc/API/cyjl.php?id=" + id + "&msg=我接" + cy).String()
+						if err != nil {
+							s2.Reply(err)
+							return nil
+						}
+						return data
+					}, `[\s\S]*`, time.Duration(time.Second*300))
+				}
 			},
 		},
 	})

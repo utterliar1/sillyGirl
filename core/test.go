@@ -256,18 +256,18 @@ Alias=sillyGirl.service`
 				return "电脑重启后生效。"
 			},
 		},
-		{
-			Rules: []string{"raw .*pornhub.*"},
-			Handle: func(s Sender) interface{} {
-				s.Reply("你已涉黄永久禁言。")
-				for {
-					s.Await(s, func(s2 Sender, _ error) interface{} {
-						s2.Disappear(time.Millisecond * 50)
-						return "你已被禁言。"
-					}, `[\s\S]*`, time.Duration(time.Second*300))
-				}
-			},
-		},
+		// {
+		// 	Rules: []string{"raw .*pornhub.*"},
+		// 	Handle: func(s Sender) interface{} {
+		// 		s.Reply("你已涉黄永久禁言。")
+		// 		for {
+		// 			s.Await(s, func(s2 Sender, _ error) interface{} {
+		// 				s2.Disappear(time.Millisecond * 50)
+		// 				return "你已被禁言。"
+		// 			}, `[\s\S]*`, time.Duration(time.Second*300))
+		// 		}
+		// 	},
+		// },
 		{
 			Rules: []string{"raw ^成语接龙$"},
 			Handle: func(s Sender) interface{} {
@@ -277,12 +277,22 @@ Alias=sillyGirl.service`
 					s.Reply(err)
 				}
 				s.Reply(data)
+				stop := false
 				for {
 					s.Await(s, func(s2 Sender, err error) interface{} {
 						if err != nil {
 							s.Reply(err)
 						}
-						cy := regexp.MustCompile("^[一-龥]{4}$").FindString(s2.GetContent())
+						ct := s2.GetContent()
+						if ct == "退出接龙" {
+							stop = true
+							return "不要走决战到天亮，啊哦～"
+						}
+						if strings.Contains(ct, "认输") {
+							stop = true
+							return "菜*，见一次虐一次！"
+						}
+						cy := regexp.MustCompile("^[一-龥]+$").FindString(ct)
 						if cy == "" {
 							s2.Disappear(time.Millisecond * 500)
 							return "请认真接龙，一站到底！"
@@ -292,9 +302,22 @@ Alias=sillyGirl.service`
 							s2.Reply(err)
 							return nil
 						}
+						if strings.Contains(data, "file_get_contents") {
+							ss := strings.Split(data, "\n")
+							return ss[len(ss)-1]
+						}
+						if strings.Contains(data, "你赢了") {
+							stop = true
+						} else {
+							data += "玩不过就认输呗。"
+						}
 						return data
 					}, `[\s\S]*`, time.Duration(time.Second*300))
+					if stop == true {
+						break
+					}
 				}
+				return nil
 			},
 		},
 	})

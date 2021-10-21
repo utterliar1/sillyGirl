@@ -86,6 +86,26 @@ func AddCommand(prefix string, cmds []Function) {
 
 func handleMessage(sender Sender) {
 	defer sender.Finish()
+	recall := sillyGirl.Get("recall")
+	if recall != "" {
+		recalled := false
+		for _, v := range strings.Split(recall, "&") {
+			reg, err := regexp.Compile(v)
+			if err == nil {
+				if reg.FindString(sender.GetContent()) != "" {
+					if !sender.IsAdmin() {
+						sender.Delete()
+						recalled = true
+						break
+					}
+				}
+			}
+		}
+		if recalled == true {
+			return
+		}
+	}
+
 	defer func() {
 		logs.Info("%v ==> %v", sender.GetContent(), "finished")
 	}()
@@ -182,20 +202,6 @@ func handleMessage(sender Sender) {
 		}
 		return nil
 	})
-
-	recall := sillyGirl.Get("recall")
-	if recall != "" {
-		for _, v := range strings.Split(recall, "&") {
-			reg, err := regexp.Compile(v)
-			if err == nil {
-				if reg.FindString(sender.GetContent()) != "" {
-					if !sender.IsAdmin() {
-						sender.Delete()
-					}
-				}
-			}
-		}
-	}
 
 }
 

@@ -21,8 +21,8 @@ jobs:
         git clone https://github.com/cdle/sillyGirl.git  ./silly        
         cp -rf ./silly/* ./
         rm -rf ./silly
-        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o xdd_linux_amd64
-        CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o xdd_linux_arm64
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o sillygirl_amd64
+        CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o sillygirl_arm64
     - name: 'Commit Files'
       id: commit
       run: |

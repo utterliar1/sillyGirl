@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 if [ ! -d "/ql" ];then
-  cd /jd/sillygirl && nohup ./sillygirl_arm64 > sillygirl.txt 2>&1 &
+  cd /jd/sillygirl && nohup ./sillygirl_amd64 > sillygirl.txt 2>&1 &
   echo "傻妞程序正在启动中，请稍后。。。"
 else
-  cd /ql/sillygirl && nohup ./sillygirl_arm64 > sillygirl.txt 2>&1 &
+  cd /ql/sillygirl && nohup ./sillygirl_amd64 > sillygirl.txt 2>&1 &
   echo "傻妞程序正在启动中，请稍后。。。"
 fi

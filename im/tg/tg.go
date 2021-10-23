@@ -1,6 +1,8 @@
 package tg
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -264,6 +266,7 @@ func (sender *Sender) Reply(msgs ...interface{}) (int, error) {
 	case []byte:
 		rt, err = b.Send(r, string(msg.([]byte)), options...)
 	case string:
+		message := msg.(string)
 		if edit != nil && sender.reply != nil {
 			if *edit == 0 {
 				if sender.reply != nil {
@@ -279,12 +282,49 @@ func (sender *Sender) Reply(msgs ...interface{}) (int, error) {
 			}
 			return sender.reply.ID, nil
 		}
+		paths := []string{}
+		for _, v := range regexp.MustCompile(`\[CQ:image,file=([^\[\]]+)\]`).FindAllStringSubmatch(message, -1) {
+			paths = append(paths, v[1])
+			message = strings.Replace(message, fmt.Sprintf(`[CQ:image,file=%s]`, v[1]), "", -1)
+		}
+		if len(paths) > 0 {
+			is := []tb.InputMedia{}
+			for index, path := range paths {
+				if strings.Contains(path, "base64") {
+
+					decodeBytes, err := base64.StdEncoding.DecodeString(strings.Replace(path, "base64://", "", -1))
+					if err != nil {
+						sender.Reply(path[len(path)-20:])
+						sender.Reply(err)
+					}
+					i := &tb.Photo{File: tb.FromReader(bytes.NewReader(decodeBytes))}
+					if index == 0 {
+						i.Caption = message
+					}
+					is = append(is, i)
+				} else {
+					data, err := os.ReadFile("data/images/" + path)
+					if err == nil {
+						url := regexp.MustCompile("(https.*)").FindString(string(data))
+						if url != "" {
+							i := &tb.Photo{File: tb.FromURL(url)}
+							if index == 0 {
+								i.Caption = message
+							}
+							is = append(is, i)
+						}
+					}
+				}
+			}
+			b.SendAlbum(r, is)
+		} else {
+			rt, err = b.Send(r, message, options...)
+		}
 		if replace != nil {
 			b.Delete(&tb.Message{
 				ID: int(*edit),
 			})
 		}
-		rt, err = b.Send(r, msg.(string), options...)
 	case core.ImagePath:
 		f, err := os.Open(string(msg.(core.ImagePath)))
 		if err != nil {

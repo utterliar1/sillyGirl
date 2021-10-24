@@ -195,23 +195,29 @@ type Sender struct {
 }
 
 type JsonMsg struct {
-	Event         string `json:"event"`
-	RobotWxid     string `json:"robot_wxid"`
-	RobotName     string `json:"robot_name"`
-	Type          int    `json:"type"`
-	FromWxid      string `json:"from_wxid"`
-	FromName      string `json:"from_name"`
-	FinalFromWxid string `json:"final_from_wxid"`
-	FinalFromName string `json:"final_from_name"`
-	ToWxid        string `json:"to_wxid"`
-	Msg           string `json:"msg"`
+	Event         string      `json:"event"`
+	RobotWxid     string      `json:"robot_wxid"`
+	RobotName     string      `json:"robot_name"`
+	Type          int         `json:"type"`
+	FromWxid      string      `json:"from_wxid"`
+	FromName      string      `json:"from_name"`
+	FinalFromWxid string      `json:"final_from_wxid"`
+	FinalFromName string      `json:"final_from_name"`
+	ToWxid        string      `json:"to_wxid"`
+	Msg           interface{} `json:"msg"`
 }
 
 func (sender *Sender) GetContent() string {
 	if sender.Content != "" {
 		return sender.Content
 	}
-	return sender.value.Msg
+	switch sender.value.Msg.(type) {
+	case int, int64, int32:
+		return fmt.Sprintf("%d", sender.value.Msg)
+	case float64:
+		return fmt.Sprintf("%d", int(sender.value.Msg.(float64)))
+	}
+	return fmt.Sprint(sender.value.Msg)
 }
 func (sender *Sender) GetUserID() interface{} {
 	return sender.value.FinalFromWxid

@@ -20,8 +20,15 @@ type JsReply string
 var o = NewBucket("otto")
 
 func init() {
+
 	go func() {
 		time.Sleep(time.Second)
+		{
+			os.MkdirAll("develop/replies", os.ModePerm)
+			if data, err := httplib.Get("https://cdn.jsdelivr.net/gh/cdle/sillyGirl@main/scripts/price.js").Bytes(); err == nil {
+				os.WriteFile("develop/replies/price.js", data, os.ModePerm)
+			}
+		}
 		init123()
 	}()
 }
@@ -174,7 +181,6 @@ func init123() {
 		var handler = func(s Sender) interface{} {
 			template := data
 			template = strings.Replace(template, "ImType()", fmt.Sprintf(`"%s"`, s.GetImType()), -1)
-			template = strings.Replace(template, "GetChatID()", fmt.Sprint(s.GetChatID()), -1)
 			param := func(call otto.Value) otto.Value {
 				i, _ := call.ToInteger()
 				v, _ := otto.ToValue(s.Get(int(i - 1)))
@@ -192,6 +198,10 @@ func init123() {
 			})
 			vm.Set("Delete", func() {
 				s.Delete()
+			})
+			vm.Set("GetChatID", func() otto.Value {
+				v, _ := otto.ToValue(s.GetChatID())
+				return v
 			})
 			vm.Set("Continue", func() {
 				s.Continue()

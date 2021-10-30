@@ -167,9 +167,13 @@ func initSys() {
 		},
 		{
 			Admin: true,
-			Rules: []string{"set ? ? ?", "delete ? ?"},
+			Rules: []string{"set ? ? ?", "delete ? ?", "? set ? ?", "? delete ?"},
 			Handle: func(s Sender) interface{} {
-				b := Bucket(s.Get(0))
+				name := s.Get(0)
+				if name == "silly" {
+					name = "sillyGirl"
+				}
+				b := Bucket(name)
 				if !IsBucket(b) {
 					return errors.New("不存在的存储桶")
 				}
@@ -186,10 +190,14 @@ func initSys() {
 		},
 		{
 			Admin: true,
-			Rules: []string{"get ? ?"},
+			Rules: []string{"get ? ?", "? get ?"},
 			Handle: func(s Sender) interface{} {
 				s.Disappear()
-				b := Bucket(s.Get(0))
+				name := s.Get(0)
+				if name == "silly" {
+					name = "sillyGirl"
+				}
+				b := Bucket(name)
 				if !IsBucket(b) {
 					return errors.New("不存在的存储桶")
 				}

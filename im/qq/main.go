@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -43,6 +44,8 @@ var bot *coolq.CQBot
 var qq = core.NewBucket("qq")
 
 func init() {
+	type Empty struct{}
+	fmt.Println(reflect.TypeOf(Empty{}).PkgPath(), "+++++")
 	go start()
 }
 
@@ -126,7 +129,9 @@ func start() {
 		qq.Set("device.json", string(client.SystemDeviceInfo.ToJson()))
 	} else {
 		if err := client.SystemDeviceInfo.ReadJson([]byte(device)); err != nil {
-			log.Fatalf("加载设备信息失败: %v", err)
+			log.Warnf("加载设备信息失败: %v", err)
+			// log.Fatalf("加载设备信息失败: %v", err)
+			return
 		}
 	}
 	PasswordHash = md5.Sum([]byte(conf.Account.Password))
@@ -182,11 +187,15 @@ func start() {
 	if !isTokenLogin {
 		if !isQRCodeLogin {
 			if err := commonLogin(); err != nil {
-				log.Fatalf("登录时发生致命错误: %v", err)
+				// log.Fatalf("登录时发生致命错误: %v", err)
+				log.Warnf("登录时发生致命错误: %v", err)
+				return
 			}
 		} else {
 			if err := qrcodeLogin(); err != nil {
-				log.Fatalf("登录时发生致命错误: %v", err)
+				// log.Fatalf("登录时发生致命错误: %v", err)
+				log.Warnf("登录时发生致命错误: %v", err)
+				return
 			}
 		}
 	}
@@ -203,10 +212,13 @@ func start() {
 		time.Sleep(time.Second * time.Duration(conf.Account.ReLogin.Delay))
 		for {
 			if conf.Account.ReLogin.Disabled {
-				os.Exit(1)
+				// os.Exit(1)
+				return
 			}
 			if times > conf.Account.ReLogin.MaxTimes && conf.Account.ReLogin.MaxTimes != 0 {
-				log.Fatalf("Bot重连次数超过限制, 停止")
+				log.Warnf("Bot重连次数超过限制, 停止")
+				// log.Fatalf("Bot重连次数超过限制, 停止")
+				return
 			}
 			times++
 			if conf.Account.ReLogin.Interval > 0 {
@@ -223,7 +235,9 @@ func start() {
 			}
 			log.Warnf("快速重连失败: %v", err)
 			if isQRCodeLogin {
-				log.Fatalf("快速重连失败, 扫码登录无法恢复会话.")
+				// log.Fatalf("快速重连失败, 扫码登录无法恢复会话.")
+				log.Warnf("快速重连失败, 扫码登录无法恢复会话.")
+				return
 			}
 			log.Warnf("快速重连失败, 尝试普通登录. 这可能是因为其他端强行T下线导致的.")
 			time.Sleep(time.Second)

@@ -243,7 +243,11 @@ type forGroup string
 
 type again string
 
-var Again again = "again"
+var Again again = ""
+
+var GoAgain = func(str string) again {
+	return again(str)
+}
 
 type YesOrNo string
 
@@ -255,18 +259,18 @@ var ForGroup forGroup
 
 func (_ *BaseSender) Await(sender Sender, callback func(Sender) interface{}, params ...interface{}) interface{} {
 	c := &Carry{}
-	// timeout := time.Second * 86400000
+	timeout := time.Second * 86400000
 	var handleErr func(error)
 	var fg *forGroup
 	for _, param := range params {
 		switch param.(type) {
 		case string:
 			c.Pattern = param.(string)
-		// case time.Duration:
-		// 	du := param.(time.Duration)
-		// 	if du != 0 {
-		// timeout = du
-		// }
+		case time.Duration:
+			du := param.(time.Duration)
+			if du != 0 {
+				timeout = du
+			}
 		case func() string:
 			callback = param.(func(Sender) interface{})
 		case func(error):
@@ -302,8 +306,12 @@ func (_ *BaseSender) Await(sender Sender, callback func(Sender) interface{}, par
 			case Sender:
 				s := result.(Sender)
 				result := callback(s)
-				if _, ok := result.(again); ok {
-					c.Result <- nil
+				if v, ok := result.(again); ok {
+					if v == "" {
+						c.Result <- nil
+					} else {
+						c.Result <- string(v)
+					}
 				} else if _, ok := result.(YesOrNo); ok {
 					if "y" == strings.ToLower(s.GetContent()) {
 						return Yes
@@ -314,6 +322,7 @@ func (_ *BaseSender) Await(sender Sender, callback func(Sender) interface{}, par
 					}
 					c.Result <- "Y or n ?"
 				} else {
+					c.Result <- result
 					return nil
 				}
 			case error:
@@ -323,12 +332,12 @@ func (_ *BaseSender) Await(sender Sender, callback func(Sender) interface{}, par
 				c.Result <- nil
 				return nil
 			}
-			// case <-time.After(timeout):
-			// 	if handleErr != nil {
-			// 		handleErr(TimeOutError)
-			// 	}
-			// 	c.Result <- nil
-			// 	return nil
+		case <-time.After(timeout):
+			if handleErr != nil {
+				handleErr(TimeOutError)
+			}
+			c.Result <- nil
+			return nil
 		}
 	}
 }

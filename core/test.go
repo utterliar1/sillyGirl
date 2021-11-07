@@ -202,6 +202,7 @@ func initSys() {
 						ruless[j][i] = strings.Replace(ruless[j][i], `.*`, "?", -1)
 						ruless[j][i] = strings.Replace(ruless[j][i], `[(]`, "(", -1)
 						ruless[j][i] = strings.Replace(ruless[j][i], `[)]`, ")", -1)
+						ruless[j][i] = strings.Replace(ruless[j][i], `([\s\S]+)`, "?", -1)
 					}
 					ss = append(ss, strings.Join(ruless[j], "\n"))
 				}
@@ -398,6 +399,11 @@ Alias=sillyGirl.service`
 					s.Await(s, func(s2 Sender) interface{} {
 						ct := s2.GetContent()
 						me := s2.GetUserID() == s.GetUserID()
+						if strings.Contains(ct, "小爱提示") {
+							s.SetContent(fmt.Sprintf("小爱%s字开头的成语有哪些？", begin))
+							s.Continue()
+							return Again
+						}
 						if strings.Contains(ct, "认输") {
 							if me {
 								stop = true

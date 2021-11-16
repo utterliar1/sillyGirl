@@ -85,6 +85,9 @@ func initSys() {
 						if str := regexp.MustCompile(`\d+`).FindString(data); str != "" && strings.Contains(data, "package") {
 							if s.GetImType() == "fake" {
 								ver := sillyGirl.Get("compiled_at")
+								if str > ver && ver > compiled_at {
+									return nil
+								}
 								if ver < str && str > compiled_at {
 									sillyGirl.Set("compiled_at", str)
 									NotifyMasters(fmt.Sprintf("检测到更新版本(%s)。", str))

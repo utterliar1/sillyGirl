@@ -255,6 +255,7 @@ func start() {
 	saveToken()
 	cli.AllowSlider = true
 	log.Infof("登录成功 欢迎使用: %v", cli.Nickname)
+	qq.Set("bot_id", cli.Uin)
 	global.Check(cli.ReloadFriendList(), true)
 	global.Check(cli.ReloadGroupList(), true)
 	if conf.Account.Status >= int32(len(allowStatus)) || conf.Account.Status < 0 {
@@ -293,6 +294,8 @@ func start() {
 	bot.Client.OnGroupMessage(OnGroupMessage)
 	bot.Client.OnTempMessage(onTempMessage)
 	bot.Client.OnSelfPrivateMessage(func(q *client.QQClient, pm *message.PrivateMessage) {
+		time.Sleep(time.Microsecond * 500)
+		logs.Debug("receive message-id=%d internal-id=%d self=%d target=%d", pm.Id, pm.InternalId, pm.Self, pm.Target)
 		if _, ok := dd.Load(pm.InternalId); ok {
 			return
 		}
@@ -301,6 +304,8 @@ func start() {
 		// }
 	})
 	bot.Client.OnSelfGroupMessage(func(q *client.QQClient, gm *message.GroupMessage) {
+		time.Sleep(time.Microsecond * 500)
+		logs.Debug("receive message-id=%d internal-id=%d", gm.Id, gm.InternalId)
 		if _, ok := dd.Load(gm.InternalId); ok {
 			return
 		}
@@ -320,8 +325,9 @@ func start() {
 			return
 		}
 		id := bot.SendPrivateMessage(core.Int64(i), 0, &message.SendingMessage{Elements: bot.ConvertStringMessage(s, false)})
-		dd.Store(id, true)
-		// bot.SendPrivateMessage(core.Int64(i), int64(qq.GetInt("tempMessageGroupCode")), &message.SendingMessage{Elements: bot.ConvertStringMessage(s, false)})
+
+		MSG := bot.GetMessage(id)
+		dd.Store(MSG["internal-id"].(int32), true)
 	}
 	core.GroupPushs["qq"] = func(i, _ interface{}, s string) {
 		if !cli.Online {
@@ -338,7 +344,9 @@ func start() {
 		}
 		//
 		id := bot.SendGroupMessage(core.Int64(i), &message.SendingMessage{Elements: append(bot.ConvertStringMessage(s, true), imgs...)}) //&message.AtElement{Target: int64(j)}
-		dd.Store(id, true)
+
+		MSG := bot.GetMessage(id)
+		dd.Store(MSG["internal-id"].(int32), true)
 	}
 
 	coolq.IgnoreInvalidCQCode = conf.Message.IgnoreInvalidCQCode

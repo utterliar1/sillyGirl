@@ -96,7 +96,7 @@ func init123() {
 	}
 	sleep := func(value otto.Value) interface{} {
 		i, _ := value.ToInteger()
-		time.Sleep(time.Duration(i) * time.Microsecond)
+		time.Sleep(time.Duration(i) * time.Millisecond)
 		return otto.Value{}
 	}
 	push := func(call otto.Value) interface{} {
@@ -268,16 +268,22 @@ func init123() {
 				v, _ := otto.ToValue(s.GetUserID())
 				return v
 			})
-			vm.Set("input", func(call otto.FunctionCall) interface{} {
+			vm.Set("input", func(vs ...otto.Value) interface{} {
 				str := ""
-				i, _ := call.Argument(0).ToInteger()
-				j, _ := call.Argument(1).ToString()
+				var i int64
+				j := ""
+				if len(vs) > 0 {
+					i, _ = vs[0].ToInteger()
+				}
+				if len(vs) > 1 {
+					j, _ = vs[1].ToString()
+				}
 				options := []interface{}{}
-				options = append(options, time.Duration(i)*time.Microsecond)
+				options = append(options, time.Duration(i)*time.Millisecond)
 				if j != "" {
 					options = append(options, ForGroup)
 				}
-				if rt := s.Await(s, nil, options); rt != nil {
+				if rt := s.Await(s, nil, options...); rt != nil {
 					str = rt.(string)
 				}
 				v, _ := otto.ToValue(str)
@@ -285,7 +291,7 @@ func init123() {
 			})
 
 			vm.Set("sleep", sleep)
-			vm.Set("admin", func() interface{} {
+			vm.Set("isAdmin", func() interface{} {
 				if s.IsAdmin() {
 					return otto.TrueValue()
 				}

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -22,4 +23,20 @@ func Float64(str interface{}) float64 {
 
 func RegistIm(i interface{}) Bucket {
 	return NewBucket(regexp.MustCompile("[^/]+$").FindString(reflect.TypeOf(i).PkgPath()))
+}
+
+func TrimHiddenCharacter(originStr string) string {
+	srcRunes := []rune(originStr)
+	dstRunes := make([]rune, 0, len(srcRunes))
+	for _, c := range srcRunes {
+		if c >= 0 && c <= 31 && c != 10 {
+			continue
+		}
+		if c == 127 {
+			continue
+		}
+
+		dstRunes = append(dstRunes, c)
+	}
+	return strings.ReplaceAll(string(dstRunes), "￼", "")
 }

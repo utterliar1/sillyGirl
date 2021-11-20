@@ -294,7 +294,7 @@ func start() {
 	bot.Client.OnGroupMessage(OnGroupMessage)
 	bot.Client.OnTempMessage(onTempMessage)
 	cli.OnSelfPrivateMessage(func(q *client.QQClient, pm *message.PrivateMessage) {
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Second * 1)
 		if _, ok := dd.Load(pm.InternalId); ok {
 			return
 		}
@@ -331,7 +331,7 @@ func start() {
 			cli.SendGroupTempMessage(groupCode, core.Int64(i), &message.SendingMessage{Elements: bot.ConvertStringMessage(s, false)})
 		}
 
-		bot.SendPrivateMessage(core.Int64(i), groupCode, &message.SendingMessage{Elements: bot.ConvertStringMessage(s, false)})
+		// bot.SendPrivateMessage(core.Int64(i), groupCode, &message.SendingMessage{Elements: bot.ConvertStringMessage(s, false)})
 		// if id != 0 {
 		// 	MSG := bot.GetMessage(id)
 		// 	dd.Store(MSG["internal-id"].(int32), true)

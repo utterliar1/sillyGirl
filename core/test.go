@@ -349,7 +349,7 @@ func initSys() {
 					name = "sillyGirl"
 				}
 				b := Bucket(name)
-				if !IsBucket(b) {
+				if !IsBucket(b) && !strings.HasPrefix(name, "tgc_") {
 					s.Continue()
 					return nil
 				}
@@ -397,7 +397,7 @@ func initSys() {
 				if s.GetChatID() != 0 && name != "reply" {
 					return "请私聊我。"
 				} //fanlivip
-				if name != "fanlivip" && name != "otto" && name != "reply" && name != "wxsv" && name != "sillyGirl" && name != "qinglong" && name != "wx" && name != "wxmp" && name != "tg" && name != "qq" {
+				if name != "fanlivip" && name != "otto" && name != "reply" && name != "wxsv" && name != "sillyGirl" && name != "qinglong" && name != "wx" && name != "wxmp" && name != "tg" && name != "qq" && !strings.HasPrefix(name, "tgc_") {
 					s.Continue()
 					return nil
 				}
@@ -405,10 +405,10 @@ func initSys() {
 					s.Disappear()
 				}
 				b := Bucket(name)
-				if !IsBucket(b) {
-					s.Continue()
-					return nil
-				}
+				// if !IsBucket(b) {
+				// s.Continue()
+				// return nil
+				// }
 				rt := ""
 				b.Foreach(func(k, v []byte) error {
 					rt += fmt.Sprintf("%s === %s\n", k, v)

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/beego/beego/v2/core/logs"
 	"github.com/cdle/sillyGirl/core"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -57,9 +58,50 @@ type Message struct {
 	UserID      int         `json:"user_id"`
 }
 
-var conn *websocket.Conn
+var conns = map[string]*websocket.Conn{}
+var defaultBot = ""
 
 func init() {
+	core.Pushs["qq"] = func(i interface{}, s string, _ interface{}, botID string) {
+		if botID == "" {
+			botID = defaultBot
+		}
+		conn, ok := conns[botID]
+		if !ok {
+			botID = ""
+			for v := range conns {
+				botID = v
+				break
+			}
+			if botID == "" {
+				return
+			}
+		}
+		conn.WriteJSON(CallApi{
+			Action: "send_private_msg",
+			Params: map[string]interface{}{
+				"user_id": core.Int64(i),
+				"message": s,
+			},
+		})
+	}
+	core.GroupPushs["qq"] = func(i, j interface{}, s string, botID string) {
+		if botID == "" {
+			botID = defaultBot
+		}
+		conn, ok := conns[botID]
+		if !ok {
+			return
+		}
+		conn.WriteJSON(CallApi{
+			Action: "send_group_msg",
+			Params: map[string]interface{}{
+				"group_id": core.Int(i),
+				"user_id":  core.Int64(j),
+				"message":  s,
+			},
+		})
+	}
 	core.Server.GET("/qq/receive", func(c *gin.Context) {
 		var upGrader = websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -71,43 +113,35 @@ func init() {
 			c.Writer.Write([]byte(err.Error()))
 			return
 		}
-		conn = ws
-		core.Pushs["qq"] = func(i interface{}, s string, _ interface{}) {
-			if conn == nil {
-				return
-			}
-			conn.WriteJSON(CallApi{
-				Action: "send_private_msg",
-				Params: map[string]interface{}{
-					"user_id": core.Int64(i),
-					"message": s,
-				},
-			})
+		botID := c.GetHeader("X-Self-ID")
+		logs.Info("QQ机器人%s报道。", botID)
+		if len(conns) == 0 {
+			defaultBot = botID
+		} else if qq.Get("default_bot") == botID {
+			defaultBot = botID
 		}
-		core.GroupPushs["qq"] = func(i, j interface{}, s string) {
-			if conn == nil {
-				return
-			}
-			conn.WriteJSON(CallApi{
-				Action: "send_group_msg",
-				Params: map[string]interface{}{
-					"group_id": core.Int(i),
-					"user_id":  core.Int64(j),
-					"message":  s,
-				},
-			})
-		}
+		conns[botID] = ws
 		go func() {
 			for {
 				_, data, err := ws.ReadMessage()
 				if err != nil {
 					ws.Close()
-					conn = nil
+					delete(conns, botID)
+					if defaultBot == botID {
+						defaultBot = ""
+						for v := range conns {
+							defaultBot = v
+							break
+						}
+					}
 					break
 				}
 				// fmt.Println(string(data))
 				msg := &Message{}
 				json.Unmarshal(data, msg)
+				if msg.MessageType != "private" && fmt.Sprint(msg.SelfID) != defaultBot {
+					continue
+				}
 				// fmt.Println(msg)
 				if msg.SelfID == msg.UserID {
 					continue
@@ -127,6 +161,7 @@ func init() {
 }
 
 type Sender struct {
+	botID    string
 	Conn     *websocket.Conn
 	Message  *Message
 	matches  [][]string

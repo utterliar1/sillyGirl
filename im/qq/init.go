@@ -59,6 +59,7 @@ type Message struct {
 
 var conns = map[string]*websocket.Conn{}
 var defaultBot = ""
+var ignore = qq.Get("ignore")
 
 func init() {
 	core.OttoFuncs["qq_bots"] = func(string) string {
@@ -126,6 +127,9 @@ func init() {
 			defaultBot = botID
 		}
 		conns[botID] = ws
+		if !strings.Contains(ignore, botID) {
+			ignore += "&" + botID
+		}
 		go func() {
 			for {
 				_, data, err := ws.ReadMessage()
@@ -150,6 +154,17 @@ func init() {
 				// fmt.Println(msg)
 				if msg.SelfID == msg.UserID {
 					continue
+				}
+				if strings.Contains(ignore, fmt.Sprint(msg.UserID)) {
+					continue
+				}
+				if msg.GroupID != 0 {
+					if onGroups := qq.Get("offGroups", "923993867&833022151"); onGroups != "" && strings.Contains(onGroups, fmt.Sprint(msg.GroupID)) {
+						continue
+					}
+					if onGroups := qq.Get("onGroups"); onGroups != "" && !strings.Contains(onGroups, fmt.Sprint(msg.GroupID)) {
+						continue
+					}
 				}
 				if msg.PostType == "message" {
 					msg.RawMessage = strings.ReplaceAll(msg.RawMessage, "\\r", "\n")
@@ -257,6 +272,12 @@ func (sender *Sender) GroupBan(uid string, duration int) {
 var dd sync.Map
 
 func (sender *Sender) Reply(msgs ...interface{}) (int, error) {
+	chatId := sender.GetChatID()
+	if chatId != 0 {
+		if onGroups := qq.Get("spy_on", "9251251"); onGroups != "" && strings.Contains(onGroups, fmt.Sprint(chatId)) {
+			return 0, nil
+		}
+	}
 	msg := msgs[0]
 	rt := ""
 	for _, item := range msgs {

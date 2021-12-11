@@ -373,10 +373,10 @@ func initSys() {
 					name = "sillyGirl"
 				}
 				b := Bucket(name)
-				// if !IsBucket(b) && !strings.HasPrefix(name, "tgc_") {
-				// 	s.Continue()
-				// 	return nil
-				// }
+				if !IsBucket(b) && !strings.HasPrefix(name, "tgc_") {
+					s.Continue()
+					return nil
+				}
 				old := b.Get(s.Get(1))
 				b.Set(s.Get(1), s.Get(2))
 				go func() {
@@ -392,16 +392,15 @@ func initSys() {
 			Admin: true,
 			Rules: []string{"get ? ?", "? get ?"},
 			Handle: func(s Sender) interface{} {
-
 				name := s.Get(0)
 				if name == "silly" {
 					name = "sillyGirl"
 				}
 				b := Bucket(name)
-				// if !IsBucket(b) {
-				// 	s.Continue()
-				// 	return nil
-				// }
+				if !IsBucket(b) {
+					s.Continue()
+					return nil
+				}
 				s.Disappear()
 				v := b.Get(s.Get(1))
 				if v == "" {

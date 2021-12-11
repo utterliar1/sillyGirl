@@ -65,6 +65,9 @@ type Faker struct {
 }
 
 func (sender *Faker) GetContent() string {
+	if sender.Content != "" {
+		return sender.Content
+	}
 	return sender.Message
 }
 
@@ -131,6 +134,11 @@ func (sender *Faker) Reply(msgs ...interface{}) (int, error) {
 	}
 	if rt != "" && n != nil {
 		NotifyMasters(rt)
+	}
+	if sender.Type == "terminal" && rt != "" {
+		fmt.Printf("\x1b[%dm%s \x1b[0m\n", 31, rt)
+		// fmt.Printf("%c[0;41;36m%s%c[0m\n", 0x1B, rt, 0x1B)
+		// fmt.Println(rt)
 	}
 	return 0, nil
 }

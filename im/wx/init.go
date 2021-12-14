@@ -401,6 +401,7 @@ func (sender *Sender) Copy() core.Sender {
 }
 
 func sendTextMsg(pmsg *TextMsg) {
+	pmsg.Msg = strings.ReplaceAll(pmsg.Msg, "\\r", "\n")
 	pmsg.Msg = regexp.MustCompile("[\n\r]+").ReplaceAllString(pmsg.Msg, "\n")
 	pmsg.Msg = strings.Trim(pmsg.Msg, "\n ")
 	if mode == "vlw" {

@@ -173,11 +173,13 @@ func init() {
 					break
 				}
 				// fmt.Println(string(data))
+
 				msg := &Message{}
 				json.Unmarshal(data, msg)
 				if msg.MessageType != "private" && fmt.Sprint(msg.SelfID) != defaultBot {
 					continue
 				}
+				// fmt.Println(msg)
 				if msg.SelfID == msg.UserID {
 					continue
 				}
@@ -300,7 +302,7 @@ var dd sync.Map
 func (sender *Sender) Reply(msgs ...interface{}) (int, error) {
 	chatId := sender.GetChatID()
 	if chatId != 0 {
-		if onGroups := qq.Get("spy_on", "9251251"); onGroups != "" && strings.Contains(onGroups, fmt.Sprint(chatId)) {
+		if onGroups := qq.Get("spy_on", "9251251&833022151"); onGroups != "" && strings.Contains(onGroups, fmt.Sprint(chatId)) {
 			return 0, nil
 		}
 	}

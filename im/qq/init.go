@@ -115,6 +115,7 @@ func init() {
 			if !ok {
 				botID = ""
 				for v := range conns {
+					conn = conns[v]
 					botID = v
 					break
 				}
@@ -137,7 +138,15 @@ func init() {
 			}
 			conn, ok := conns[botID]
 			if !ok {
-				return
+				botID = ""
+				for v := range conns {
+					conn = conns[v]
+					botID = v
+					break
+				}
+				if botID == "" {
+					return
+				}
 			}
 			userId := core.Int64(j)
 			if userId != 0 {
@@ -162,6 +171,7 @@ func init() {
 				_, data, err := ws.ReadMessage()
 				if err != nil {
 					ws.Close()
+					logs.Info("QQ机器人(%s)已断开。", botID)
 					delete(conns, botID)
 					if defaultBot == botID {
 						defaultBot = ""

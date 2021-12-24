@@ -253,22 +253,28 @@ func Init123() {
 			vm.Set("bucketKeys", bucketKeys)
 			vm.Set("request", request)
 			vm.Set("push", push)
-			vm.Set("sendText", func(text string) {
-				s.Reply(text)
+			vm.Set("sendText", func(text string) []string {
+				i, _ := s.Reply(text)
+				return i
 			})
 			vm.Set("Logger", Logger)
 			vm.Set("SillyGirl", SillyGirl)
 			vm.Set("image", func(url string) interface{} {
 				return `[CQ:image,file=` + url + `]`
 			})
-			vm.Set("sendImage", func(url string) {
-				s.Reply(ImageUrl(url))
-			})
-			vm.Set("sendVideo", func(url string) {
+			vm.Set("sendImage", func(url string) []string {
 				if url == "" {
-					return
+					return nil
 				}
-				s.Reply(VideoUrl(url))
+				i, _ := s.Reply(ImageUrl(url))
+				return i
+			})
+			vm.Set("sendVideo", func(url string) []string {
+				if url == "" {
+					return nil
+				}
+				i, _ := s.Reply(VideoUrl(url))
+				return i
 			})
 
 			importedJs := make(map[string]struct{})
@@ -281,8 +287,9 @@ func Init123() {
 					return errors.New("不能使用父路径")
 				}
 				file = strings.Replace(file, "./", "", -1)
-				if ! strings.HasSuffix(file,".js") {
-					file=file+".js"
+				file = strings.Replace(file, "//", "", -1)
+				if !strings.HasSuffix(file, ".js") {
+					file = file + ".js"
 				}
 				if _, ok := importedJs[file]; ok {
 					return nil
@@ -305,7 +312,10 @@ func Init123() {
 				if strings.Contains(dir, "..") {
 					return errors.New("不能使用父路径")
 				}
+				dir = strings.Replace(dir, "./", "", -1)
+				dir = strings.Replace(dir, "//", "", -1)
 				dir = strings.TrimPrefix(dir, "/")
+				dir = strings.TrimSuffix(dir, "/")
 				files, err := ioutil.ReadDir(basePath + dir)
 				if err != nil {
 					return err

@@ -482,14 +482,15 @@ func request(wt interface{}, handles ...func(error, map[string]interface{}, inte
 	default:
 		req = httplib.Get(url)
 	}
-	for i := range headers {
-		req.Header(i, fmt.Sprint(headers[i]))
-	}
 	if isJsonBody {
 		req.Header("Content-Type", "application/json")
 	}
+	//自定义header优先级最高
+	for i := range headers {
+		req.Header(i, fmt.Sprint(headers[i]))
+	}
 	for i := range formData {
-		req.Param(i, fmt.Sprint(headers[i]))
+		req.Param(i, fmt.Sprint(formData[i]))
 	}
 	if body != "" {
 		req.Body(body)
@@ -500,9 +501,12 @@ func request(wt interface{}, handles ...func(error, map[string]interface{}, inte
 		})
 		rsp, err := req.Response()
 		if err == nil && (rsp.StatusCode == 301 || rsp.StatusCode == 302) {
-			url = rsp.Header.Get("Location")
+			return rsp.Header.Get("Location")
+		} else
+		//非重定向,允许用户自定义判断
+		if len(handles) == 0 {
+			return err
 		}
-		return url
 	}
 	if useproxy && Transport != nil {
 		req.SetTransport(Transport)
@@ -514,7 +518,7 @@ func request(wt interface{}, handles ...func(error, map[string]interface{}, inte
 		rspObj["statusCode"] = rsp.StatusCode
 		data, _ := ioutil.ReadAll(rsp.Body)
 		if isJson {
-			var v = map[string]interface{}{}
+			var v interface{}
 			json.Unmarshal(data, &v)
 			bd = v
 		} else {

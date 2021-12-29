@@ -208,6 +208,7 @@ app.get('/lastTime', (req, res) => {
 		vm.Set("SillyGirl", SillyGirl)
 		vm.Set("Request", newrequest)
 		vm.Set("request", request)
+		vm.Set("fetch", request)
 		vm.Set("require", require)
 		Render := func(path string, obj map[string]interface{}) {
 			c.HTML(http.StatusOK, path, obj)
@@ -434,7 +435,7 @@ func require(str string) interface{} {
 	return nil
 }
 
-func request(wt interface{}, handles ...func(error, map[string]interface{}, ...interface{}) interface{}) interface{} {
+func request(wt interface{}, handles ...func(error, map[string]interface{}, interface{}) interface{}) interface{} {
 	var method = "get"
 	var url = ""
 	var req *httplib.BeegoHTTPRequest

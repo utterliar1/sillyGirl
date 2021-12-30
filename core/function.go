@@ -134,6 +134,7 @@ func handleMessage(sender Sender) {
 	con := true
 	mtd := false
 	waits.Range(func(k, v interface{}) bool {
+		// logs.Debug(k.(string), c, "")
 		c := v.(*Carry)
 		vs, _ := url.ParseQuery(k.(string))
 		userID := vs.Get("u")
@@ -150,6 +151,7 @@ func handleMessage(sender Sender) {
 			return true
 		}
 		if m := regexp.MustCompile(c.Pattern).FindString(content); m != "" {
+			// logs.Debug(k.(string), c)
 			mtd = true
 			c.Chan <- sender
 			sender.Reply(<-c.Result)
@@ -161,6 +163,7 @@ func handleMessage(sender Sender) {
 		}
 		return true
 	})
+	// logs.Debug(mtd, con)
 	if mtd && !con {
 		return
 	}

@@ -200,12 +200,12 @@ func Init123() {
 			})
 			vm.Set("Delete", s.Delete)
 			vm.Set("GetChatID", s.GetChatID)
-			vm.Set("ImType", func() string {
-				return s.GetImType()
-			})
+			vm.Set("GetImType", s.GetImType)
+			vm.Set("ImType", s.GetImType)
 			vm.Set("Continue", s.Continue)
 			vm.Set("GetUsername", s.GetUsername)
 			vm.Set("GetChatname", s.GetChatname)
+			vm.Set("GetMessageID", s.GetMessageID)
 			vm.Set("Debug", func(str string) {
 				logs.Debug(str)
 			})

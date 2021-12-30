@@ -47,7 +47,7 @@ type Message struct {
 	Font        int         `json:"font"`
 	GroupID     int         `json:"group_id"`
 	Message     string      `json:"message"`
-	MessageID   int         `json:"message_id"`
+	MessageID   interface{} `json:"message_id"`
 	MessageType string      `json:"message_type"`
 	PostType    string      `json:"post_type"`
 	RawMessage  string      `json:"raw_message"`
@@ -66,12 +66,15 @@ type QQ struct {
 	conn *websocket.Conn
 	// id   int
 	sync.Mutex
+	id int
 }
 
-func (qq *QQ) WriteJSON(i interface{}) error {
+func (qq *QQ) WriteJSON(ca CallApi) (string, error) {
 	qq.Lock()
 	defer qq.Unlock()
-	return qq.conn.WriteJSON(i)
+	qq.id++
+	ca.Echo = fmt.Sprint(qq.id)
+	return "", qq.conn.WriteJSON(ca)
 }
 
 func init() {
@@ -169,6 +172,7 @@ func init() {
 		go func() {
 			for {
 				_, data, err := ws.ReadMessage()
+				fmt.Println(string(data))
 				if err != nil {
 					ws.Close()
 					logs.Info("QQ机器人(%s)已断开。", botID)
@@ -362,12 +366,13 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 }
 
 func (sender *Sender) Delete() error {
-	return sender.Conn.WriteJSON(CallApi{
+	sender.Conn.WriteJSON(CallApi{
 		Action: "delete_msg",
 		Params: map[string]interface{}{
 			"message_id": sender.Message.MessageID,
 		},
 	})
+	return nil
 }
 
 func (sender *Sender) Disappear(lifetime ...time.Duration) {

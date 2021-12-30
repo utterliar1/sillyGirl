@@ -18,11 +18,15 @@ import (
 
 var qq = core.NewBucket("qq")
 
-// type Params struct {
-// 	UserID  interface{} `json:"user_id"`
-// 	Message string      `json:"message"`
-// 	GroupID int         `json:"group_id"`
-// }
+type Result struct {
+	Retcode int `json:"retcode"`
+	Data    struct {
+		MessageID interface{} `json:"message_id"`
+	} `json:"data"`
+	Status string      `json:"status"`
+	Error  interface{} `json:"error"`
+	Echo   string      `json:"echo"`
+}
 
 type CallApi struct {
 	Action string                 `json:"action"`
@@ -64,17 +68,29 @@ var ignore = qq.Get("ignore")
 
 type QQ struct {
 	conn *websocket.Conn
-	// id   int
-	sync.Mutex
-	id int
+	sync.RWMutex
+	id    int
+	chans map[string]chan string
 }
 
 func (qq *QQ) WriteJSON(ca CallApi) (string, error) {
 	qq.Lock()
-	defer qq.Unlock()
 	qq.id++
 	ca.Echo = fmt.Sprint(qq.id)
-	return "", qq.conn.WriteJSON(ca)
+	cy := make(chan string, 1)
+	defer close(cy)
+	qq.chans[ca.Echo] = cy
+	if err := qq.conn.WriteJSON(ca); err != nil {
+		qq.Unlock()
+		return "", err
+	}
+	qq.Unlock()
+	select {
+	case v := <-cy:
+		return v, nil
+	case <-time.After(time.Second * 60):
+	}
+	return "", nil
 }
 
 func init() {
@@ -103,8 +119,10 @@ func init() {
 			defaultBot = botID
 		}
 		qqcon := &QQ{
-			conn: ws,
+			conn:  ws,
+			chans: make(map[string]chan string),
 		}
+
 		conns[botID] = qqcon
 		if !strings.Contains(ignore, botID) {
 			ignore += "&" + botID
@@ -186,8 +204,18 @@ func init() {
 					}
 					break
 				}
-				// fmt.Println(string(data))
-
+				{
+					res := &Result{}
+					json.Unmarshal(data, res)
+					if res.Echo != "" {
+						qqcon.RLock()
+						if c, ok := qqcon.chans[res.Echo]; ok {
+							c <- fmt.Sprint(res.Data.MessageID)
+						}
+						qqcon.RUnlock()
+						continue
+					}
+				}
 				msg := &Message{}
 				json.Unmarshal(data, msg)
 				if msg.MessageType != "private" && fmt.Sprint(msg.SelfID) != defaultBot {
@@ -344,16 +372,19 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 		return []string{}, nil
 	}
 	rt = strings.Trim(rt, "\n")
+	ids := []string{}
 	if sender.Message.MessageType == "private" {
-		sender.Conn.WriteJSON(CallApi{
+		id, err := sender.Conn.WriteJSON(CallApi{
 			Action: "send_private_msg",
 			Params: map[string]interface{}{
 				"user_id": sender.Message.UserID,
 				"message": rt,
 			},
 		})
+		ids = append(ids, id)
+		return ids, err
 	} else {
-		sender.Conn.WriteJSON(CallApi{
+		id, err := sender.Conn.WriteJSON(CallApi{
 			Action: "send_group_msg",
 			Params: map[string]interface{}{
 				"group_id": sender.Message.GroupID,
@@ -361,8 +392,10 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 				"message":  rt,
 			},
 		})
+		ids = append(ids, id)
+		return ids, err
 	}
-	return []string{}, nil
+
 }
 
 func (sender *Sender) Delete() error {
@@ -394,4 +427,28 @@ func (sender *Sender) GetUsername() string {
 
 func (sender *Sender) GetChatname() string {
 	return ""
+}
+
+func (sender *Sender) RecallMessage(ps ...interface{}) error {
+	for _, p := range ps {
+		switch p.(type) {
+		case string:
+			sender.Conn.WriteJSON(CallApi{
+				Action: "delete_msg",
+				Params: map[string]interface{}{
+					"message_id": p,
+				},
+			})
+		case []string:
+			for _, v := range p.([]string) {
+				sender.Conn.WriteJSON(CallApi{
+					Action: "delete_msg",
+					Params: map[string]interface{}{
+						"message_id": v,
+					},
+				})
+			}
+		}
+	}
+	return nil
 }

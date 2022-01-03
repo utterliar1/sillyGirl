@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/beego/beego/v2/core/logs"
@@ -25,6 +26,8 @@ type Sender struct {
 	deleted  bool
 	reply    *tb.Message
 	core.BaseSender
+	sync.RWMutex
+	replied []tb.Message
 }
 
 var tg = core.NewBucket("tg")
@@ -237,7 +240,7 @@ func (sender *Sender) GetImType() string {
 }
 
 func (sender *Sender) GetMessageID() string {
-	return fmt.Sprint(sender.Message.ID)
+	return "-1"
 }
 
 func (sender *Sender) GetUsername() string {
@@ -281,6 +284,7 @@ func (sender *Sender) IsMedia() bool {
 
 func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 	msg := msgs[0]
+	ids := []string{}
 	var edit *core.Edit
 	var replace *core.Replace
 	for _, item := range msgs {
@@ -305,7 +309,9 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 		r = sender.Message.Chat
 		if !sender.deleted {
 			if sender.Message.ReplyTo == nil {
-				options = []interface{}{&tb.SendOptions{ReplyTo: sender.Message}}
+				if !sender.deleted {
+					options = []interface{}{&tb.SendOptions{ReplyTo: sender.Message}}
+				}
 			} else {
 				options = []interface{}{&tb.SendOptions{ReplyTo: sender.Message.ReplyTo}}
 			}
@@ -315,8 +321,15 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 	switch msg.(type) {
 	case error:
 		rt, err = b.Send(r, fmt.Sprintf("%v", msg), options...)
+		if err == nil {
+			ids = append(ids, sender.addReplied(*rt)...)
+		}
 	case []byte:
 		rt, err = b.Send(r, string(msg.([]byte)), options...)
+		if err == nil {
+			ids = append(ids, sender.addReplied(*rt)...)
+		}
+
 	case string:
 		message := msg.(string)
 		if edit != nil && sender.reply != nil {
@@ -332,7 +345,7 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 			if sender.reply == nil {
 				return []string{}, nil
 			}
-			return []string{fmt.Sprint(sender.reply.ID)}, nil
+			return ids, nil
 		}
 		paths := []string{}
 		message = regexp.MustCompile(`file=[^\[\]]*,url`).ReplaceAllString(message, "file")
@@ -344,11 +357,10 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 			is := []tb.InputMedia{}
 			for index, path := range paths {
 				if strings.Contains(path, "base64") {
-
 					decodeBytes, err := base64.StdEncoding.DecodeString(strings.Replace(path, "base64://", "", -1))
 					if err != nil {
-						sender.Reply(path[len(path)-20:])
-						sender.Reply(err)
+						// sender.Reply(path[len(path)-20:])
+						// sender.Reply(err)
 					}
 					i := &tb.Photo{File: tb.FromReader(bytes.NewReader(decodeBytes))}
 					if index == 0 {
@@ -375,9 +387,16 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 					}
 				}
 			}
-			b.SendAlbum(r, is, options...)
+			rt, err := b.SendAlbum(r, is, options...)
+			if err == nil {
+				ids = append(ids, sender.addReplied(rt...)...)
+			}
+
 		} else {
 			rt, err = b.Send(r, message, options...)
+			if err == nil {
+				ids = append(ids, sender.addReplied(*rt)...)
+			}
 		}
 		if replace != nil {
 			b.Delete(&tb.Message{
@@ -393,6 +412,7 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 			rts, err := b.SendAlbum(r, tb.Album{&tb.Photo{File: tb.FromReader(f)}}, options...)
 			if err == nil {
 				rt = &rts[0]
+				ids = append(ids, sender.addReplied(rts...)...)
 			}
 		}
 	case core.ImageUrl:
@@ -405,32 +425,35 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 		// }
 		rts, err := b.SendAlbum(r, tb.Album{&tb.Photo{File: tb.FromURL(string(msg.(core.ImageUrl)))}}, options...)
 		if err == nil {
-			rt = &rts[0]
+			ids = append(ids, sender.addReplied(rts...)...)
 		}
 	case core.VideoUrl:
 		rts, err := b.SendAlbum(r, tb.Album{&tb.Video{File: tb.FromURL(string(msg.(core.VideoUrl)))}}, options...)
 		if err == nil {
-			rt = &rts[0]
+			ids = append(ids, sender.addReplied(rts...)...)
+
 		}
 	case core.ImageData:
 		rts, err := b.SendAlbum(r, tb.Album{&tb.Photo{File: tb.FromReader(bytes.NewReader(msg.(core.ImageData)))}}, options...)
 		if err == nil {
-			rt = &rts[0]
+			ids = append(ids, sender.addReplied(rts...)...)
+
 		}
 	case core.ImageBase64:
 		data, err := base64.StdEncoding.DecodeString(string(msg.(core.ImageBase64)))
 		if err != nil {
-			sender.Reply(err)
-			return []string{}, nil
+			// sender.Reply(err)
+			return ids, nil
 		}
 		rts, err := b.SendAlbum(r, tb.Album{&tb.Photo{File: tb.FromReader(bytes.NewReader(data))}}, options...)
 		if err == nil {
-			rt = &rts[0]
+			ids = append(ids, sender.addReplied(rts...)...)
+
 		}
 	}
-	if err != nil {
-		sender.Reply(err)
-	}
+	// if err != nil {
+	// 	sender.Reply(err)
+	// }
 	if rt != nil && sender.Duration != nil {
 		if *sender.Duration != 0 {
 			go func() {
@@ -447,9 +470,9 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 		sender.reply = rt
 	}
 	if sender.reply != nil {
-		return []string{fmt.Sprint(sender.reply.ID)}, err
+		return ids, err
 	}
-	return []string{}, nil
+	return ids, nil
 }
 
 func (sender *Sender) Delete() error {
@@ -479,19 +502,35 @@ func (sender *Sender) Copy() core.Sender {
 }
 
 func (sender *Sender) RecallMessage(ps ...interface{}) error {
-	// for _, p := range ps {
-	// 	switch p.(type) {
-	// 	case string:
-	// 		b.Delete(&tb.Message{
-	// 			ID: core.Int(p),
-	// 		})
-	// 	case []string:
-	// 		for _, v := range p.([]string) {
-	// 			b.Delete(&tb.Message{
-	// 				ID: core.Int(v),
-	// 			})
-	// 		}
-	// 	}
-	// }
+	sender.RLock()
+	defer sender.RUnlock()
+	for _, p := range ps {
+		switch p.(type) {
+		case string:
+			if p.(string) == "-1" {
+				if !sender.deleted {
+					sender.deleted = true
+				}
+				b.Delete(sender.Message)
+			} else {
+				b.Delete(&sender.replied[core.Int(p.(string))])
+			}
+		case []string:
+			for _, v := range p.([]string) {
+				b.Delete(&sender.replied[core.Int(v)])
+			}
+		}
+	}
 	return nil
+}
+
+func (sender *Sender) addReplied(toadd ...tb.Message) []string {
+	sender.Lock()
+	defer sender.Unlock()
+	rt := []string{}
+	for _, v := range toadd {
+		rt = append(rt, fmt.Sprint(len(sender.replied)))
+		sender.replied = append(sender.replied, v)
+	}
+	return rt
 }

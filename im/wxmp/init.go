@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,9 +21,11 @@ import (
 
 var wxmp = core.NewBucket("wxmp")
 var material = core.NewBucket("wxmpMaterial")
+var image2Md = core.NewBucket("image2Md")
+var file_dir = "logs/wxmp/"
 
 func init() {
-	file_dir := "logs/wxmp/"
+
 	os.MkdirAll(file_dir, os.ModePerm)
 	if !wxmp.GetBool("isKe?", false) {
 		core.Server.Any("/wx/", func(c *gin.Context) {
@@ -85,6 +88,7 @@ func init() {
 						if err != nil {
 							return err
 						}
+
 						material.Set(mediaID, filename)
 						return nil
 					}()
@@ -209,6 +213,48 @@ func (sender *Sender) Reply(msgs ...interface{}) ([]string, error) {
 
 			}
 		}
+		{
+			// paths := []string{}
+			rt = regexp.MustCompile(`file=[^\[\]]*,url`).ReplaceAllString(rt, "file")
+			for _, v := range regexp.MustCompile(`\[CQ:image,file=([^\[\]]+)\]`).FindAllStringSubmatch(rt, -1) {
+				// paths = append(paths, v[1])
+				if strings.HasPrefix(v[1], "http") {
+					if mid := image2Md.Get(v[1]); mid != "" {
+						app.SendImage(sender.GetUserID(), mid)
+						continue
+					}
+					filename := file_dir + fmt.Sprint(time.Now().UnixNano()) + ".jpg"
+					err := func() error {
+						f, err := os.Create(filename)
+						if err != nil {
+							return err
+						}
+						rsp, err := httplib.Get(v[1]).Response()
+						_, err = io.Copy(f, rsp.Body)
+						if err != nil {
+							f.Close()
+							return err
+						}
+						f.Close()
+						// m := officialAccount.GetMaterial()
+						// mediaID, _, err = m.AddMaterial(message.MsgTypeImage, filename)
+						md, err := app.MediaUpload("image", filename)
+						if err != nil {
+							return err
+						}
+						app.SendImage(sender.GetUserID(), md.MediaID)
+						image2Md.Set(v[1], md.MediaID)
+						return nil
+					}()
+					if err == nil {
+
+					}
+				}
+				//
+			}
+		}
+		rt = regexp.MustCompile(`\[CQ:([^\[\]]+)\]`).ReplaceAllString(rt, "")
+		rt = regexp.MustCompile(`^\s`).ReplaceAllString(rt, "")
 		sender.ctx.NewText(rt).Send()
 		return []string{}, nil
 	} else {

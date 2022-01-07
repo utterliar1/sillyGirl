@@ -1,6 +1,7 @@
 package wxgzh
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/cdle/sillyGirl/core"
@@ -9,15 +10,19 @@ import (
 )
 
 var wxsv = core.NewBucket("wxsv")
-var app = server.New(&server.WxConfig{
-	AppId:          wxsv.Get("app_id"),
-	Secret:         wxsv.Get("app_secret"),
-	Token:          wxsv.Get("token"),
-	EncodingAESKey: wxsv.Get("encoding_aes_key"),
-	DateFormat:     "XML",
-})
+var app *server.Server
 
 func init() {
+	if wxsv.Get("app_id") == "" {
+		return
+	}
+	app = server.New(&server.WxConfig{
+		AppId:          wxsv.Get("app_id"),
+		Secret:         wxsv.Get("app_secret"),
+		Token:          wxsv.Get("token"),
+		EncodingAESKey: wxsv.Get("encoding_aes_key"),
+		DateFormat:     "XML",
+	})
 
 	core.Pushs["wxsv"] = func(i1 interface{}, s1 string, _ interface{}, _ string) {
 		app.SendText(fmt.Sprint(i1), s1)
@@ -29,6 +34,9 @@ func init() {
 			return
 		}
 
+		if ctx.Msg.Event == "CLICK" {
+			ctx.Msg.Content = "wxsv " + ctx.Msg.EventKey
+		}
 		sender := &Sender{}
 		sender.tp = "wxsv"
 		sender.Message = ctx.Msg.Content
@@ -40,12 +48,13 @@ func init() {
 	core.AddCommand("", []core.Function{
 		{
 			Admin: true,
-			Rules: []string{"init wxsv menu"},
-			Cron:  "1 1 * * *",
+			Rules: []string{"init wxsv"},
+			// Cron:  "1 1 * * *",
 			Handle: func(_ core.Sender) interface{} {
 				c := &core.Faker{
 					Type:    "carry",
-					Message: wxsv.Get("app_id"),
+					Message: "wxsv init",
+					Carry:   make(chan string),
 				}
 				core.Senders <- c
 				f := ""
@@ -56,6 +65,12 @@ func init() {
 					}
 					f = v
 				}
+				bt := server.Menu{}
+				json.Unmarshal([]byte(f), &bt)
+				if len(bt.Button) < 0 {
+					return "没解析出菜单，" + f
+				}
+				app.AddMenu(&bt)
 				return f
 			},
 		},

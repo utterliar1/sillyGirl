@@ -49,6 +49,7 @@ func init() {
 				sender.Message = msg.Content
 				sender.Wait = make(chan []interface{}, 1)
 				sender.uid = fmt.Sprint(msg.FromUserName)
+				sender.tp = "wxmp"
 				core.Senders <- sender
 				end := <-sender.Wait
 				ss := []string{}
@@ -195,7 +196,7 @@ func (sender *Sender) IsAdmin() bool {
 	if sender.admin {
 		return true
 	}
-	return strings.Contains(wxmp.Get("masters"), fmt.Sprint(sender.uid))
+	return strings.Contains(core.Bucket(sender.tp).Get("masters"), fmt.Sprint(sender.uid))
 }
 
 func (sender *Sender) IsMedia() bool {

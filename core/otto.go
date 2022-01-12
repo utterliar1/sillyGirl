@@ -47,6 +47,40 @@ var OttoFuncs = map[string]interface{}{
 	},
 }
 
+type Strings struct {
+}
+
+func (sender *Strings) Contains(s, substr string) bool {
+	return strings.Contains(s, substr)
+}
+
+func (sender *Strings) Replace(s string, old string, new string, n int) string {
+	return strings.Replace(s, old, new, n)
+}
+
+func (sender *Strings) ReplaceAll(s string, old string, new string) string {
+	return strings.ReplaceAll(s, old, new)
+}
+
+type Fmt struct {
+}
+
+func (sender *Fmt) Sprintf(format string, a ...interface{}) string {
+	return fmt.Sprintf(format, a...)
+}
+
+func (sender *Fmt) Printf(format string, a ...interface{}) {
+	fmt.Printf(format, a...)
+}
+
+func (sender *Fmt) Println(a ...interface{}) (int, error) {
+	return fmt.Println(a...)
+}
+
+func (sender *Fmt) Print(a ...interface{}) (int, error) {
+	return fmt.Print(a...)
+}
+
 type JsSender struct {
 	Sender Sender
 	again  string
@@ -359,10 +393,15 @@ func Init123() {
 				return i
 			})
 
-			sender := &JsSender{
+			vm.Set("Sender", &JsSender{
 				Sender: s,
-			}
-			vm.Set("Sender", sender)
+			})
+
+			vm.Set("fmt", &Fmt{})
+			vm.Set("strings", &Strings{})
+			vm.Set("nil", nil)
+
+			// vm.Set("fmt", fmt)
 			importedJs := make(map[string]struct{})
 			importedJs[jr[len(basePath):]] = struct{}{}
 			//2个或者2个以上"/"

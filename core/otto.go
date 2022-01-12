@@ -104,8 +104,14 @@ func (sender *JsSender) GetContent() string {
 func (sender *JsSender) GetImType() string {
 	return sender.Sender.GetImType()
 }
+func (sender *JsSender) RecallMessage(p ...interface{}) {
+	sender.Sender.RecallMessage(p...)
+}
 func (sender *JsSender) GetUsername() string {
 	return sender.Sender.GetUsername()
+}
+func (sender *JsSender) GetMessageID() string {
+	return sender.Sender.GetMessageID()
 }
 
 func (sender *JsSender) GetGroupCode() int {

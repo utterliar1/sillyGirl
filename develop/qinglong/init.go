@@ -149,16 +149,26 @@ func (ql *QingLong) Req(ps ...interface{}) error {
 	req.SetTimeout(time.Second*5, time.Second*5)
 	if method != GET {
 		if ql.idSqlite {
-			body = []byte(strings.ReplaceAll(string(body), `"_id"`, `"id"`))
+			s := string(body)
+			for _, v := range regexp.MustCompile(`"_id":"(\d+)",`).FindAllStringSubmatch(s, -1) {
+				s = strings.Replace(s, v[0], `"id":`+v[1]+`,`, -1)
+			}
+			body = []byte(s)
+			// body = []byte(strings.ReplaceAll(string(body), `"_id"`, `"id"`))
 		}
 		req.Body(body)
 	}
+	// logs.Info(ql.idSqlite, string(body))
 	data, err := req.Bytes()
 	if err != nil {
 		return err
 	}
 	if strings.Contains(string(data), `"id"`) {
-		body = []byte(strings.ReplaceAll(string(body), `"id"`, `"_id"`))
+		s := string(data)
+		for _, v := range regexp.MustCompile(`"id":(\d+),`).FindAllStringSubmatch(s, -1) {
+			s = strings.Replace(s, v[0], `"_id":"`+v[1]+`",`, -1)
+		}
+		data = []byte(s)
 		if !ql.idSqlite {
 			go func() {
 				ql.Lock()
@@ -167,6 +177,7 @@ func (ql *QingLong) Req(ps ...interface{}) error {
 			}()
 		}
 	}
+	// logs.Info(ql.idSqlite, string(data))
 	code, _ := jsonparser.GetInt(data, "code")
 	if code != 200 {
 		return errors.New(string(data))

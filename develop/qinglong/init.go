@@ -60,23 +60,113 @@ func init() {
 				Rules: []string{"青龙管理"},
 				Admin: true,
 				Handle: func(s core.Sender) interface{} {
-					// var ql *QingLong
-					// ls := []string{}
-					// nn := QLS
-					// for i := range nn {
-					// 	ls = append(ls, fmt.Sprintf("%d. %s", i+1, nn[i].Name))
-					// }
-					// ls = append(ls, fmt.Sprintf("%d. %s", len(nn)+1, "所有容器"))
-					// s.Reply("请选择容器进行编辑：(带-删除，0增加)\n" + strings.Join(ls, "\n"))
-					// r := s.Await(s, func(s core.Sender) interface{} {
-					// 	return core.Range([]int{-len(nn), len(nn)})
-					// })
-					// if r.(int) == 0 {
-					// 	ql = &QingLong{}
-					// 	nn
-					// }
-					// ql = nn[r.(int)-1]
-					return nil
+					var ql *QingLong
+					var ls []string
+					nn := QLS
+					t := ""
+				hh:
+					ls = []string{}
+					for i := range nn {
+						t := ""
+						if nn[i].Default {
+							t = "- 默认"
+						}
+						ls = append(ls, fmt.Sprintf("%d. %s %s", i+1, nn[i].Name, t))
+					}
+					s.Reply("请选择容器进行编辑：(-删除，0增加，q退出)\n" + strings.Join(ls, "\n"))
+					r := s.Await(s, nil)
+					is := r.(string)
+					i := 0
+					if is == "q" {
+						goto stop
+					}
+					if is == "0" {
+						ql = &QingLong{}
+						nn = append(nn, ql)
+					}
+					i = core.Int(is)
+					if i < 0 && i >= -len(QLS) {
+						for j := range nn {
+							if j == -i-1 {
+								nn = append(nn[:j], nn[j+1:]...)
+								break
+							}
+						}
+						goto hh
+					}
+					if i > 0 && i <= len(QLS) {
+						ql = nn[i-1]
+					}
+					if ql.Host == "" {
+					oo:
+						s.Reply("请输入青龙面板地址：")
+						ql.Host = regexp.MustCompile(`^(https?://[\.\w]+:?\d*)`).FindString(s.Await(s, nil).(string))
+						if ql.Host == "" {
+							goto oo
+						}
+					}
+					if ql.ClientID == "" {
+						s.Reply("请输入ClientID：")
+						ql.ClientID = s.Await(s, nil).(string)
+					}
+					if ql.ClientSecret == "" {
+						s.Reply("请输入ClientSecret：")
+						ql.ClientSecret = s.Await(s, nil).(string)
+					}
+					if ql.Name == "" {
+						s.Reply("请输入备注：")
+						ql.Name = s.Await(s, nil).(string)
+					}
+					for {
+						if ql.Default {
+							t = "取消默认"
+						} else {
+							t = "设置默认"
+						}
+						s.Reply(fmt.Sprintf("请选择要编辑的属性(q退出)：\n%s", strings.Join(
+							[]string{
+								fmt.Sprintf("1. 容器备注 - %s", ql.Name),
+								fmt.Sprintf("2. 面板地址 - %s", ql.Host),
+								fmt.Sprintf("3. ClientID - %s", ql.ClientID),
+								fmt.Sprintf("4. ClientSecret - %s", ql.ClientSecret),
+								fmt.Sprintf("5. %s", t),
+							}, "\n")))
+						switch s.Await(s, nil) {
+						default:
+							goto hh
+						case "1":
+							s.Reply("请输入备注：")
+							ql.Name = s.Await(s, nil).(string)
+						case "2":
+						oo1:
+							s.Reply("请输入青龙面板地址：")
+							ql.Host = regexp.MustCompile(`^(https?://[\.\w]+:?\d*)`).FindString(s.Await(s, nil).(string))
+							if ql.Host == "" {
+								goto oo1
+							}
+						case "3":
+							s.Reply("请输入ClientID：")
+							ql.ClientID = s.Await(s, nil).(string)
+						case "4":
+							s.Reply("请输入ClientSecret：")
+							ql.ClientSecret = s.Await(s, nil).(string)
+						case "5":
+							ql.Default = !ql.Default
+						case "q":
+							goto hh
+						}
+					}
+				stop:
+					s.Reply("是否保存修改？(Y/n)")
+					if s.Await(s, func(s core.Sender) interface{} {
+						return core.YesNo
+					}) == core.Yes {
+						QLS = nn
+						d, _ := json.Marshal(nn)
+						qinglong.Set("QLS", string(d))
+						return "已保存修改。"
+					}
+					return "未作修改。"
 				},
 			},
 		})
@@ -123,17 +213,18 @@ func (ql *QingLong) GetToken() (string, error) {
 	data, err := req.Bytes()
 	if err != nil {
 		msg := fmt.Sprintf("青龙连接失败：%v", err)
-		logs.Warn(msg)
+		// logs.Warn(msg)
 		return "", errors.New(msg)
 	}
 	code, _ := jsonparser.GetInt(data, "code")
 	if code != 200 {
 		msg := fmt.Sprintf("青龙登录失败：%v", string(data))
-		logs.Warn(msg)
+		// logs.Warn(msg)
 		return "", errors.New(msg)
 	}
 	ql.Token, _ = jsonparser.GetString(data, "data", "token")
 	expiration, _ = jsonparser.GetInt(data, "data", "expiration")
+
 	return ql.Token, nil
 }
 
@@ -338,6 +429,9 @@ func GetQinglongByClientID(s string) (error, *QingLong) {
 func QinglongSC(s core.Sender) (error, []*QingLong) {
 	if len(QLS) == 0 {
 		return errors.New("未配置容器。"), nil
+	}
+	if len(QLS) == 1 {
+		return nil, QLS
 	}
 	var ql *QingLong
 	if s != nil && !s.IsAdmin() { //普通用户自动分配

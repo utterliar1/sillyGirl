@@ -26,6 +26,7 @@ type QingLong struct {
 	sync.RWMutex
 	idSqlite bool
 	Name     string `json:"name"`
+	Number   int    `json:"-"`
 }
 
 // var Config *QingLong
@@ -62,7 +63,9 @@ func init() {
 				Handle: func(s core.Sender) interface{} {
 					var ql *QingLong
 					var ls []string
-					nn := QLS
+					nn := []*QingLong{}
+					sss := qinglong.Get("QLS")
+					json.Unmarshal([]byte(sss), &nn)
 					t := ""
 				hh:
 					ls = []string{}
@@ -205,7 +208,87 @@ func initqls() {
 	logs.Info("青龙360安全卫士为您保驾护航，杜绝一切流氓脚本！")
 }
 
+func (ql *QingLong) SetNumber(i int) {
+	ql.Lock()
+	defer ql.Unlock()
+	ql.Number = i
+}
+
+func (ql *QingLong) GetNumber() int {
+	ql.RLock()
+	defer ql.RUnlock()
+	return ql.Number
+}
+
+func (ql *QingLong) SetClientID(i string) {
+	ql.Lock()
+	defer ql.Unlock()
+	ql.ClientID = i
+}
+
+func (ql *QingLong) GetClientID() string {
+	ql.RLock()
+	defer ql.RUnlock()
+	return ql.ClientID
+}
+
+func (ql *QingLong) SetClientSecret(i string) {
+	ql.Lock()
+	defer ql.Unlock()
+	ql.ClientSecret = i
+}
+
+func (ql *QingLong) GetClientSecret() string {
+	ql.RLock()
+	defer ql.RUnlock()
+	return ql.ClientSecret
+}
+
+func (ql *QingLong) SetHost(i string) {
+	ql.Lock()
+	defer ql.Unlock()
+	ql.Host = i
+}
+
+func (ql *QingLong) GetHost() string {
+	ql.RLock()
+	defer ql.RUnlock()
+	return ql.Host
+}
+
+func (ql *QingLong) SetName(i string) {
+	ql.Lock()
+	defer ql.Unlock()
+	ql.Name = i
+}
+
+func (ql *QingLong) SetIsSqlite() {
+	ql.Lock()
+	defer ql.Unlock()
+	ql.idSqlite = true
+}
+
+func (ql *QingLong) IsSqlite() bool {
+	ql.RLock()
+	defer ql.RUnlock()
+	return ql.idSqlite
+}
+
+func (ql *QingLong) GetName() string {
+	ql.RLock()
+	defer ql.RUnlock()
+	return ql.Name
+}
+
+func (ql *QingLong) SetToken(i string) {
+	ql.Lock()
+	defer ql.Unlock()
+	ql.Name = i
+}
+
 func (ql *QingLong) GetToken() (string, error) {
+	ql.RLock()
+	defer ql.RUnlock()
 	if ql.Token != "" && expiration > time.Now().Unix() {
 		return ql.Token, nil
 	}
@@ -224,7 +307,6 @@ func (ql *QingLong) GetToken() (string, error) {
 	}
 	ql.Token, _ = jsonparser.GetString(data, "data", "token")
 	expiration, _ = jsonparser.GetInt(data, "data", "expiration")
-
 	return ql.Token, nil
 }
 
@@ -298,9 +380,6 @@ func Req(p interface{}, ps ...interface{}) (*QingLong, error) {
 	if ql == nil {
 		return nil, errors.New("未选择容器。")
 	}
-
-	ql.RLock()
-	defer ql.RUnlock()
 	token, err := ql.GetToken()
 	if err != nil {
 		return nil, err
@@ -342,29 +421,27 @@ func Req(p interface{}, ps ...interface{}) (*QingLong, error) {
 	api = strings.Trim(api, " ")
 	switch method {
 	case GET:
-		req = httplib.Get(ql.Host + "/open/" + api)
+		req = httplib.Get(ql.GetHost() + "/open/" + api)
 	case POST:
-		req = httplib.Post(ql.Host + "/open/" + api)
+		req = httplib.Post(ql.GetHost() + "/open/" + api)
 	case DELETE:
-		req = httplib.Delete(ql.Host + "/open/" + api)
+		req = httplib.Delete(ql.GetHost() + "/open/" + api)
 	case PUT:
-		req = httplib.Put(ql.Host + "/open/" + api)
+		req = httplib.Put(ql.GetHost() + "/open/" + api)
 	}
 	req.Header("Authorization", fmt.Sprintf("Bearer %s", token))
 	req.Header("Content-Type", "application/json;charset=UTF-8")
 	req.SetTimeout(time.Second*5, time.Second*5)
 	if method != GET {
-		if ql.idSqlite {
+		if ql.IsSqlite() {
 			s := string(body)
 			for _, v := range regexp.MustCompile(`"_id":"(\d+)",`).FindAllStringSubmatch(s, -1) {
 				s = strings.Replace(s, v[0], `"id":`+v[1]+`,`, -1)
 			}
 			body = []byte(s)
-			// body = []byte(strings.ReplaceAll(string(body), `"_id"`, `"id"`))
 		}
 		req.Body(body)
 	}
-	// logs.Info(ql.idSqlite, string(body))
 	data, err := req.Bytes()
 	if err != nil {
 		return nil, err
@@ -375,15 +452,11 @@ func Req(p interface{}, ps ...interface{}) (*QingLong, error) {
 			s = strings.Replace(s, v[0], `"_id":"`+v[1]+`",`, -1)
 		}
 		data = []byte(s)
-		if !ql.idSqlite {
-			go func() {
-				ql.Lock()
-				ql.idSqlite = true
-				ql.Unlock()
-			}()
+		if !ql.IsSqlite() {
+			ql.SetIsSqlite()
 		}
 	}
-	// logs.Info(ql.idSqlite, string(data))
+
 	code, _ := jsonparser.GetInt(data, "code")
 	if code != 200 {
 		return nil, errors.New(string(data))
@@ -414,14 +487,12 @@ func GetQinglongByClientID(s string) (error, *QingLong) {
 		return errors.New("未配置容器。"), nil
 	}
 	var ql *QingLong
+	min := 10000000
 	for i := range QLS {
-		if QLS[i].Default {
+		if num := QLS[i].GetNumber(); num <= min {
+			min = num
 			ql = QLS[i]
-			break
 		}
-	}
-	if ql == nil {
-		ql = QLS[0]
 	}
 	return errors.New("默认获取了一个容器。"), ql
 }

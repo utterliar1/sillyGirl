@@ -23,6 +23,7 @@ type QingLong struct {
 	Token          string `json:"-"`
 	Error          error  `json:"-"`
 	Default        bool   `json:"default"`
+	Disable        bool   `json:"disable"`
 	AggregatedMode bool   `json:"aggregated_mode"`
 	sync.RWMutex
 	idSqlite bool   `json:"-"`
@@ -51,7 +52,13 @@ func GetQLSLen() int {
 func SetQLS(qls []*QingLong) {
 	qLSLock.Lock()
 	defer qLSLock.Unlock()
-	qLS = qls
+	nn := []*QingLong{}
+	for _, ql := range qls {
+		if !ql.Disable {
+			nn = append(nn, ql)
+		}
+	}
+	qLS = nn
 }
 
 var expiration int64
@@ -89,6 +96,7 @@ func init() {
 					json.Unmarshal([]byte(sss), &nn)
 					t := ""
 					ju := ""
+					jy := ""
 				hh:
 					ls = []string{}
 					cs := []chan bool{}
@@ -117,6 +125,9 @@ func init() {
 						}
 						if nn[i].AggregatedMode {
 							t = append(t, "聚合")
+						}
+						if nn[i].Disable {
+							t = append(t, "禁用")
 						}
 
 						s := ""
@@ -189,14 +200,30 @@ func init() {
 						} else {
 							ju = "开启聚合模式"
 						}
+
+						if ql.Disable {
+							jy = "启用容器"
+						} else {
+							jy = "禁用容器"
+						}
+
+						host := ql.Host
+						ClientSecret := ql.ClientSecret
+
+						host = regexp.MustCompile(`/[^.]+?\.`).ReplaceAllString(host, "/*.")
+						host = regexp.MustCompile(`\.[^.]+\.`).ReplaceAllString(host, ".*.")
+						host = regexp.MustCompile(`\.[^.]+\:`).ReplaceAllString(host, ".*:")
+						ClientSecret = "*******"
+
 						s.Reply(fmt.Sprintf("请选择要编辑的属性(u返回,q退出,wq保存)：\n%s", strings.Join(
 							[]string{
 								fmt.Sprintf("1. 容器备注 - %s", ql.Name),
-								fmt.Sprintf("2. 面板地址 - %s", ql.Host),
+								fmt.Sprintf("2. 面板地址 - %s", host),
 								fmt.Sprintf("3. ClientID - %s", ql.ClientID),
-								fmt.Sprintf("4. ClientSecret - %s", ql.ClientSecret),
+								fmt.Sprintf("4. ClientSecret - %s", ClientSecret),
 								fmt.Sprintf("5. %s", t),
 								fmt.Sprintf("6. %s", ju),
+								fmt.Sprintf("7. %s", jy),
 							}, "\n")))
 						switch s.Await(s, nil) {
 						default:
@@ -221,13 +248,15 @@ func init() {
 							ql.Default = !ql.Default
 						case "6":
 							ql.AggregatedMode = !ql.AggregatedMode
+						case "7":
+							ql.Disable = !ql.Disable
 						case "u":
 							goto hh
 						case "q":
 							goto stop
 						case "!q", "q!":
 							return "强制退出。"
-						case "wq", "qw":
+						case "wq", "qw", "qw!", "!wq":
 							goto save
 						}
 					}

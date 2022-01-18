@@ -107,21 +107,45 @@ func UdpEnv(ql *QingLong, env Env) error {
 // }
 
 func AddEnv(ql *QingLong, es ...Env) error {
+	nn := []Env{}
 	for i := range es {
-		es[i].Created = 0
-		es[i].Timestamp = ""
-		es[i].ID = ""
+		n := es[i]
+		n.Created = 0
+		n.Timestamp = ""
+		n.ID = ""
+		nn = append(nn, n)
 	}
-	_, err := Req(ql, POST, ENVS, es)
+	_, err := Req(ql, POST, ENVS, nn)
 	return err
 }
 
 func RemEnv(ql *QingLong, es ...Env) error {
 	v := []string{}
-	for i := range es {
-		v = append(v, fmt.Sprintf(`"%s"`, es[i].ID))
+	if ql.IsSqlite() {
+		for i := range es {
+			v = append(v, fmt.Sprintf(`%s`, es[i].ID))
+		}
+	} else {
+		for i := range es {
+			v = append(v, fmt.Sprintf(`"%s"`, es[i].ID))
+		}
 	}
 	_, err := Req(ql, DELETE, ENVS, []byte(`[`+strings.Join(v, ",")+`]`))
+	return err
+}
+
+func DisableEnv(ql *QingLong, es ...Env) error {
+	v := []string{}
+	if ql.IsSqlite() {
+		for i := range es {
+			v = append(v, fmt.Sprintf(`%s`, es[i].ID))
+		}
+	} else {
+		for i := range es {
+			v = append(v, fmt.Sprintf(`"%s"`, es[i].ID))
+		}
+	}
+	_, err := Req(ql, PUT, ENVS, "/disable", []byte(`[`+strings.Join(v, ",")+`]`))
 	return err
 }
 

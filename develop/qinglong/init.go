@@ -31,6 +31,7 @@ type QingLong struct {
 	Number   int    `json:"-"`
 	try      int    `json:"-"`
 	Weight   int    `json:"weight"`
+	Pins     string `json:"pins"`
 }
 
 // var Config *QingLong
@@ -105,6 +106,7 @@ func init() {
 				hh:
 					ls = []string{}
 					ps := qinglong.Get("pins")
+					ct := qinglong.Get("chetou")
 					cs := []chan bool{}
 					for i := range nn {
 						c := make(chan bool)
@@ -146,7 +148,7 @@ func init() {
 					r := s.Await(s, nil)
 					is := r.(string)
 					i := 0
-					if is == "wq" || is == "qw" {
+					if is == "wq" || is == "qw" || is == "wq!" {
 						goto save
 					}
 					if is == "q" {
@@ -235,7 +237,9 @@ func init() {
 								fmt.Sprintf("6. %s", ju),
 								fmt.Sprintf("7. %s", jy),
 								fmt.Sprintf("8. 权重 - %d", ql.Weight),
-								fmt.Sprintf("9. 钉子户 - %s", strings.Join(regexp.MustCompile(`[^\s&@]*`).FindAllString(ps, -1), "｜")),
+								fmt.Sprintf("9. 车头 - %s", strings.Join(regexp.MustCompile(`[^\s&@]*`).FindAllString(ct, -1), "｜")),
+								fmt.Sprintf("10. 大钉子户 - %s", strings.Join(regexp.MustCompile(`[^\s&@]*`).FindAllString(ps, -1), "｜")),
+								fmt.Sprintf("11. 小钉子户 - %s", strings.Join(regexp.MustCompile(`[^\s&@]*`).FindAllString(ql.Pins, -1), "｜")),
 							}, "\n")))
 						switch s.Await(s, nil) {
 						default:
@@ -266,8 +270,15 @@ func init() {
 							s.Reply("请输入权重：")
 							ql.Weight = core.Int(s.Await(s, nil).(string))
 						case "9":
-							s.Reply("请输入钉子户(多个用空格隔开)：")
-							ps = s.Await(s, nil).(string)
+							s.Reply("请输入车头：")
+							ct = regexp.MustCompile(`\s+`).ReplaceAllString(s.Await(s, nil).(string), " ")
+
+						case "10":
+							s.Reply("请输入大钉子户：")
+							ps = regexp.MustCompile(`\s+`).ReplaceAllString(s.Await(s, nil).(string), " ")
+						case "11":
+							s.Reply("请输入小钉子户：")
+							ql.Pins = strings.Join(regexp.MustCompile(`[^\s&@]*`).FindAllString(regexp.MustCompile(`\s+`).ReplaceAllString(s.Await(s, nil).(string), " "), -1), " ")
 						case "u":
 							goto hh
 						case "q":
@@ -290,6 +301,7 @@ func init() {
 					d, _ := json.Marshal(nn)
 					qinglong.Set("QLS", string(d))
 					qinglong.Set("pins", strings.Join(regexp.MustCompile(`[^\s&@]*`).FindAllString(ps, -1), " "))
+					qinglong.Set("chetou", strings.Join(regexp.MustCompile(`[^\s&@]*`).FindAllString(ct, -1), " "))
 					return "已保存修改。"
 				},
 			},
@@ -389,6 +401,18 @@ func (ql *QingLong) GetHost() string {
 	ql.RLock()
 	defer ql.RUnlock()
 	return ql.Host
+}
+
+func (ql *QingLong) GetPinsArray() []string {
+	ql.RLock()
+	defer ql.RUnlock()
+	return regexp.MustCompile(`[^\s&@]*`).FindAllString(ql.Pins, -1)
+}
+
+func (ql *QingLong) GetPins() string {
+	ql.RLock()
+	defer ql.RUnlock()
+	return ql.Pins
 }
 
 func (ql *QingLong) SetName(i string) {

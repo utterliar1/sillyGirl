@@ -397,6 +397,9 @@ func (ql *QingLong) SetHost(i string) {
 func (ql *QingLong) GetTail() string {
 	ql.RLock()
 	defer ql.RUnlock()
+	if GetQLSLen() == 1 {
+		return ""
+	}
 	return fmt.Sprintf("	——来自%s", ql.Name)
 }
 
@@ -731,22 +734,48 @@ func QinglongSC(s core.Sender) (error, []*QingLong) {
 	}
 	ls := []string{}
 	for i := range nn {
-		ls = append(ls, fmt.Sprintf("%d. %s", i+1, nn[i].Name))
+		ls = append(ls, fmt.Sprintf("%d. 容器(%s)", i+1, nn[i].Name))
 	}
-	s.Reply("请选择容器：\n" + strings.Join(ls, "\n"))
-	r := s.Await(s, func(s core.Sender) interface{} {
-		return core.Range([]int{1, len(nn)})
-	}, time.Second*10)
+	ls = append(ls, "a. 所有容器")
+	ls = append(ls, "b. 所有聚合容器")
+	ls = append(ls, "c. 所有普通容器")
+	s.Reply("请选择容器：(q退出)\n" + strings.Join(ls, "\n"))
+	r := s.Await(s, nil, time.Second*10)
 	switch r {
 	case nil:
-		s.Reply()
 		return errors.New("你没有选择容器。"), []*QingLong{}
+	case "q":
+		return errors.New("你已取消选择容器。"), nil
+	case "a":
+		return nil, nn
+	case "b":
+		t := []*QingLong{}
+		for i := range nn {
+			if nn[i].AggregatedMode {
+				t = append(t, nn[i])
+			}
+		}
+		if len(t) == 0 {
+			return errors.New("你没有设置聚合容器。"), nil
+		}
+		return nil, t
+	case "c":
+		t := []*QingLong{}
+		for i := range nn {
+			if !nn[i].AggregatedMode {
+				t = append(t, nn[i])
+			}
+		}
+		if len(t) == 0 {
+			return errors.New("你没有设置普通容器。"), nil
+		}
+		return nil, t
 	default:
 		index := r.(int) - 1
 		if index != len(nn) {
 			return nil, []*QingLong{nn[index]}
 		} else {
-			return nil, nn
+			return errors.New("输入错误，已取消。"), nil
 		}
 	}
 }

@@ -122,11 +122,11 @@ func initCron() {
 				for _, ql := range qls {
 					cron, err := GetCronID(ql, s, s.Get())
 					if err != nil {
-						s.Reply(err)
+						s.Reply(err.Error() + ql.GetTail())
 						continue
 					}
 					if _, err := Req(ql, CRONS, PUT, "/run", []byte(fmt.Sprintf(`["%s"]`, cron.ID))); err != nil {
-						s.Reply(err)
+						s.Reply(err.Error() + ql.GetTail())
 						continue
 					}
 					s.Reply(fmt.Sprintf("已运行，%v。%s", cron.Name, ql.GetTail()))
@@ -393,6 +393,10 @@ func formatCron(cron *Cron) string {
 }
 
 func GetCronID(ql *QingLong, s core.Sender, keyword string) (*Cron, error) {
+	if s.IsAtLast() {
+		s.UAtLast()
+		defer s.AtLast()
+	}
 	crons, err := GetCrons(ql, "")
 	if err != nil {
 		return nil, err
@@ -416,7 +420,7 @@ func GetCronID(ql *QingLong, s core.Sender, keyword string) (*Cron, error) {
 		// }
 	}
 	if len(cs) == 0 {
-		return nil, errors.New("找不到任务。")
+		return nil, errors.New("找不到任务。" + ql.GetTail())
 	}
 	var cron Cron
 	if len := len(cs); len > 1 {
@@ -438,7 +442,7 @@ func GetCronID(ql *QingLong, s core.Sender, keyword string) (*Cron, error) {
 				return nil
 			}, `[\s\S]*`, time.Duration(time.Hour))
 			if !stop {
-				s.Reply("请正确选择任务。")
+				s.Reply("请正确选择任务。" + ql.GetTail())
 			} else {
 				break
 			}

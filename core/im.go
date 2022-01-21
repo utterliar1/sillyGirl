@@ -43,6 +43,10 @@ type Sender interface {
 	Copy() Sender
 	GroupKick(uid string, reject_add_request bool)
 	GroupBan(uid string, duration int)
+	AtLast()
+	UAtLast()
+	IsAtLast() bool
+	MessagesToSend() string
 }
 
 type Edit int
@@ -197,10 +201,13 @@ func (sender *Faker) GroupBan(uid string, duration int) {
 }
 
 type BaseSender struct {
-	matches [][]string
-	goon    bool
-	child   Sender
-	Content string
+	matches        [][]string
+	goon           bool
+	child          Sender
+	Content        string
+	Atlast         bool
+	ToSendMessages []string
+	IsFinished     bool
 }
 
 func (sender *BaseSender) SetMatch(ss []string) {
@@ -257,7 +264,7 @@ func (sender *BaseSender) Disappear(lifetime ...time.Duration) {
 }
 
 func (sender *BaseSender) Finish() {
-
+	sender.IsFinished = true
 }
 
 func (sender *BaseSender) IsMedia() bool {
@@ -296,6 +303,22 @@ func (sender *BaseSender) GroupKick(uid string, reject_add_request bool) {
 
 func (sender *BaseSender) GroupBan(uid string, duration int) {
 
+}
+
+func (sender *BaseSender) AtLast() {
+	sender.Atlast = true
+}
+
+func (sender *BaseSender) UAtLast() {
+	sender.Atlast = false
+}
+
+func (sender *BaseSender) IsAtLast() bool {
+	return sender.Atlast
+}
+
+func (sender *BaseSender) MessagesToSend() string {
+	return strings.Join(sender.ToSendMessages, "\n")
 }
 
 var TimeOutError = errors.New("指令超时")

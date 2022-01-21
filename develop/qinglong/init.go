@@ -747,6 +747,7 @@ func QinglongSC(s core.Sender) (error, []*QingLong) {
 	case "q":
 		return errors.New("你已取消选择容器。"), nil
 	case "a":
+		s.AtLast()
 		return nil, nn
 	case "b":
 		t := []*QingLong{}
@@ -758,6 +759,7 @@ func QinglongSC(s core.Sender) (error, []*QingLong) {
 		if len(t) == 0 {
 			return errors.New("你没有设置聚合容器。"), nil
 		}
+		s.AtLast()
 		return nil, t
 	case "c":
 		t := []*QingLong{}
@@ -769,13 +771,17 @@ func QinglongSC(s core.Sender) (error, []*QingLong) {
 		if len(t) == 0 {
 			return errors.New("你没有设置普通容器。"), nil
 		}
+		s.AtLast()
 		return nil, t
 	default:
-		index := r.(int) - 1
-		if index != len(nn) {
-			return nil, []*QingLong{nn[index]}
-		} else {
-			return errors.New("输入错误，已取消。"), nil
+		str := r.(string)
+
+		for i := range nn {
+			if fmt.Sprint(i+1) == str {
+				return nil, []*QingLong{nn[i]}
+			}
 		}
+
+		return errors.New("输入错误，已取消。"), nil
 	}
 }

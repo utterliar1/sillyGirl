@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/beego/beego/v2/core/logs"
 	"github.com/cdle/sillyGirl/core"
 )
 
@@ -16,6 +17,7 @@ func initTask() {
 			Admin: true,
 			Handle: func(s core.Sender) interface{} {
 				err, qls := QinglongSC(s)
+				s.UAtLast()
 				if err != nil {
 					return err
 				}
@@ -23,18 +25,24 @@ func initTask() {
 					cron := &Carrier{
 						Get: "data._id",
 					}
-					ql, err := Req(ql, cron, CRONS, POST, []byte(`{"name":"sillyGirl临时创建任务","command":"ql raw `+s.Get()+`","schedule":" 1 1 1 1 1"}`))
+					_, err := Req(ql, cron, CRONS, POST, []byte(`{"name":"sillyGirl临时创建任务","command":"ql raw `+s.Get()+`","schedule":" 1 1 1 1 1"}`))
 					if err != nil {
 						s.Reply(err.Error() + ql.GetTail())
 						continue
 					}
+
 					if _, err := Req(ql, CRONS, PUT, "/run", []byte(fmt.Sprintf(`["%s"]`, cron.Value))); err != nil {
+						s.Reply(err.Error() + ql.GetTail())
+						continue
+					}
+					if err != nil {
 						s.Reply(err.Error() + ql.GetTail())
 						continue
 					}
 					for {
 						time.Sleep(time.Microsecond * 300)
 						data, _ := GetCronLog(ql, cron.Value)
+						logs.Info(string(data))
 						if strings.Contains(data, "执行结束...") {
 							s.Reply(data + ql.GetTail())
 							break
@@ -60,7 +68,7 @@ func initTask() {
 					cron := &Carrier{
 						Get: "data._id",
 					}
-					ql, err := Req(ql, cron, CRONS, POST, []byte(`{"name":"sillyGirl临时创建任务","command":"task `+s.Get()+`","schedule":" 1 1 1 1 1"}`))
+					_, err := Req(ql, cron, CRONS, POST, []byte(`{"name":"sillyGirl临时创建任务","command":"task `+s.Get()+`","schedule":" 1 1 1 1 1"}`))
 					if err != nil {
 						s.Reply(err.Error() + ql.GetTail())
 						continue
@@ -102,7 +110,7 @@ func initTask() {
 						"command":  `ql repo ` + s.Get(),
 						"schedule": "1 1 1 1 1",
 					})
-					ql, err := Req(ql, cron, CRONS, POST, data)
+					_, err := Req(ql, cron, CRONS, POST, data)
 					if err != nil {
 						s.Reply(err.Error() + ql.GetTail())
 						continue

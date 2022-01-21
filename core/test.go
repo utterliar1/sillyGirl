@@ -406,22 +406,34 @@ func initSys() {
 		},
 		{
 			Admin: true,
-			Rules: []string{"empty ?"},
+			Rules: []string{"empty ? ?", "? empty ?"},
 			Handle: func(s Sender) interface{} {
 				name := s.Get(0)
+				filter := s.Get(1)
 				if name == "silly" {
 					name = "sillyGirl"
 				}
-				s.Reply("20秒内回复任意，取消清空" + name + "的操作。")
-				if s.Await(s, nil, time.Second*20) != nil {
-					return "取消清空操作。"
+				a := ""
+				if filter != "" {
+					a = "中包含" + filter
+				}
+				s.Reply("20秒内回复任意取消清空" + name + a + "的记录。")
+				switch s.Await(s, nil, time.Second*20) {
+				case nil:
+				case "快":
+				default:
+					return "已取消。"
 				}
 				b := Bucket(name)
-				b.Foreach(func(k, _ []byte) error {
-					b.Set(string(k), "")
+				i := 0
+				b.Foreach(func(k, v []byte) error {
+					if filter == "" || strings.Contains(string(k), filter) || strings.Contains(string(v), filter) {
+						b.Set(string(k), "")
+						i++
+					}
 					return nil
 				})
-				return "清空完成。"
+				return fmt.Sprintf("已清空%d个记录。", i)
 			},
 		},
 		{

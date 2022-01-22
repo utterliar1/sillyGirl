@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/beego/beego/v2/adapter/httplib"
+	"github.com/boltdb/bolt"
 )
 
 func init() {
@@ -168,7 +169,12 @@ func initSys() {
 				var kz = s.Get(0)
 				if compiled_at != "" {
 					str := ""
-					for _, prefix := range []string{""} {
+					pxs := []string{}
+					if p := sillyGirl.Get("download_prefix"); p != "" {
+						pxs = append(pxs, p)
+					}
+					pxs = append(pxs, "")
+					for _, prefix := range pxs {
 						if str == "" && s.GetImType() != "fake" {
 							if v, ok := OttoFuncs["version"]; ok {
 								if rt := v.(func(string) string)(""); rt != "" {
@@ -249,7 +255,7 @@ func initSys() {
 							continue
 						}
 					}
-					return `无法升级，你网不好。建议您手动于linux执行一键升级命令： s=sillyGirl;a=arm64;if [[ $(uname -a | grep "x86_64") != "" ]];then a=amd64;fi ;if [ ! -d $s ];then mkdir $s;fi ;cd $s;wget https://mirror.ghproxy.com/https://github.com/cdle/${s}/releases/download/main/${s}_linux_$a -O $s && chmod 777 $s;pkill -9 $s;$(pwd)/$s`
+					return `无法升级，你网不好。建议您手动于linux执行一键升级命令： s=sillyGirl;a=arm64;if [[ $(uname -a | grep "x86_64") != "" ]];then a=amd64;fi ;if [ ! -d $s ];then mkdir $s;fi ;cd $s;wget https://github.com/cdle/${s}/releases/download/main/${s}_linux_$a -O $s && chmod 777 $s;pkill -9 $s;$(pwd)/$s`
 				}
 
 				s.Reply("开始检查核心更新...", E)
@@ -413,7 +419,7 @@ func initSys() {
 		},
 		{
 			Admin: true,
-			Rules: []string{"empty ? ?", "? empty ?"},
+			Rules: []string{"empty ?", "empty ? ?", "? empty ?"},
 			Handle: func(s Sender) interface{} {
 				name := s.Get(0)
 				filter := s.Get(1)
@@ -425,11 +431,22 @@ func initSys() {
 					a = "中包含" + filter
 				}
 				s.Reply("20秒内回复任意取消清空" + name + a + "的记录。")
+
 				switch s.Await(s, nil, time.Second*20) {
 				case nil:
 				case "快":
 				default:
 					return "已取消。"
+				}
+				if filter == "" {
+					db.Update(func(t *bolt.Tx) error {
+						err := t.DeleteBucket([]byte(name))
+						if err != nil {
+							s.Reply(err)
+						}
+						return nil
+					})
+					return fmt.Sprintf("已清空。")
 				}
 				b := Bucket(name)
 				i := 0

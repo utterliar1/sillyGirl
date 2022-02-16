@@ -2,13 +2,25 @@ package main
 
 import (
 	"bufio"
+	"fmt"
+	"log"
 	"os"
+	"runtime"
+	"time"
+
+	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/cdle/sillyGirl/core"
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	go monitorGoroutine()
 	core.Init123()
 	sillyGirl := core.Bucket("sillyGirl")
 	port := sillyGirl.Get("port", "8080")
@@ -40,4 +52,17 @@ func main() {
 	}
 
 	select {}
+}
+
+func monitorGoroutine() {
+
+	ticker := time.NewTicker(time.Millisecond * 100)
+	lastGNum := 0
+	for {
+		<-ticker.C
+		if lastGNum != runtime.NumGoroutine() {
+			fmt.Println("<========================", time.Now().Format("2006-01-02 15:04:05"), "Goroutine Number :", runtime.NumGoroutine(), "=========================>")
+			lastGNum = runtime.NumGoroutine()
+		}
+	}
 }

@@ -2,11 +2,12 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"runtime"
 	"time"
 
-	// _ "net/http/pprof"
+	"github.com/DeanThompson/ginpprof"
 
 	"github.com/beego/beego/v2/core/logs"
 	"github.com/cdle/sillyGirl/core"
@@ -16,7 +17,7 @@ func main() {
 	// go func() {
 	// 	log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
 	// }()
-
+	ginpprof.Wrapper(core.Server)
 	core.Init123()
 	sillyGirl := core.Bucket("sillyGirl")
 	// if sillyGirl.GetBool("monitorGoroutine") {
@@ -62,7 +63,9 @@ func monitorGoroutine() {
 	for {
 		<-ticker.C
 		if newGNum := runtime.NumGoroutine(); lastGNum != newGNum {
-			// fmt.Println("<========================", time.Now().Format("2006-01-02 15:04:05"), "Goroutine Number :", runtime.NumGoroutine(), "=========================>")
+			// if core.Bucket("sillyGirl").GetBool("debug_boltdb") {
+			fmt.Println("<========================", time.Now().Format("2006-01-02 15:04:05"), "Goroutine Number :", runtime.NumGoroutine(), "=========================>")
+			// }
 			lastGNum = newGNum
 			if newGNum > 5000 {
 				core.Daemon()

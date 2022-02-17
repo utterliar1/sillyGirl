@@ -189,6 +189,7 @@ var Int64 = func(s interface{}) int64 {
 }
 
 func (bucket Bucket) Create(i interface{}) error {
+
 	s := reflect.ValueOf(i).Elem()
 	id := s.FieldByName("ID")
 	sequence := s.FieldByName("Sequence")

@@ -46,14 +46,10 @@ func initStore() {
 }
 
 func (bucket Bucket) Set(key interface{}, value interface{}) error {
-	var err error
 	return db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			b, err = tx.CreateBucket([]byte(bucket))
-			if err != nil {
-				return err
-			}
+		b, err := tx.CreateBucketIfNotExists([]byte(bucket))
+		if err != nil {
+			return err
 		}
 		k := fmt.Sprint(key)
 		if _, ok := value.([]byte); !ok {
@@ -84,14 +80,14 @@ func (bucket Bucket) Set(key interface{}, value interface{}) error {
 }
 
 func (bucket Bucket) Push2Array(key, value string) {
-	bucket.Set(key, strings.Join(append(strings.Split(bucket.Get(key), ","), value), ","))
+	bucket.Set(key, strings.Join(append(strings.Split(bucket.GetString(key), ","), value), ","))
 }
 
 func (bucket Bucket) GetArray(key string) []string {
-	return strings.Split(bucket.Get(key), ",")
+	return strings.Split(bucket.GetString(key), ",")
 }
 
-func (bucket Bucket) Get(kv ...interface{}) string {
+func (bucket Bucket) GetString(kv ...interface{}) string {
 	var key, value string
 	for i := range kv {
 		if i == 0 {
@@ -189,18 +185,13 @@ var Int64 = func(s interface{}) int64 {
 }
 
 func (bucket Bucket) Create(i interface{}) error {
-
 	s := reflect.ValueOf(i).Elem()
 	id := s.FieldByName("ID")
 	sequence := s.FieldByName("Sequence")
-	var err error
 	return db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			b, err = tx.CreateBucket([]byte(bucket))
-			if err != nil {
-				return err
-			}
+		b, err := tx.CreateBucketIfNotExists([]byte(bucket))
+		if err != nil {
+			return err
 		}
 		if _, ok := id.Interface().(int); ok {
 			key := id.Int()

@@ -362,6 +362,7 @@ func initGoja() {
 			vm.Set("GetChatname", s.GetChatname)
 			vm.Set("GetMessageID", s.GetMessageID)
 			vm.Set("RecallMessage", s.RecallMessage)
+			vm.Set("SetContent", s.SetContent)
 			vm.Set("Debug", func(str string) {
 				logs.Debug(str)
 			})
@@ -375,6 +376,11 @@ func initGoja() {
 			vm.Set("GetContent", s.GetContent)
 			vm.Set("notifyMasters", notifyMasters)
 			vm.Set("breakIn", func(str string) {
+				s := s.Copy()
+				s.SetContent(str)
+				Senders <- s
+			})
+			vm.Set("BreakIn", func(str string) {
 				s := s.Copy()
 				s.SetContent(str)
 				Senders <- s

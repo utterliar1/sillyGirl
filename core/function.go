@@ -159,7 +159,18 @@ func HandleMessage(sender Sender) {
 			if f, ok := c.Sender.(*Faker); ok && f.Carry != nil {
 				if s1, o := sender.(*Faker); o && s1.Carry != nil {
 					f.Carry = s1.Carry
-					s1.Carry = nil
+					c := make(chan string)
+					oc := s1.Carry
+					s1.Carry = c
+					go func() {
+						for {
+							r, o := <-c
+							if !o {
+								break
+							}
+							oc <- r
+						}
+					}()
 				}
 			}
 			c.Chan <- sender

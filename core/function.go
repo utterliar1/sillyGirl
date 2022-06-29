@@ -156,6 +156,12 @@ func HandleMessage(sender Sender) {
 		}
 		if m := regexp.MustCompile(c.Pattern).FindString(content); m != "" {
 			mtd = true
+			if f, ok := c.Sender.(*Faker); ok && f.Carry != nil {
+				if s1, o := sender.(*Faker); o && s1.Carry != nil {
+					f.Carry = s1.Carry
+					s1.Carry = nil
+				}
+			}
 			c.Chan <- sender
 			sender.Reply(<-c.Result)
 			if !sender.IsContinue() {

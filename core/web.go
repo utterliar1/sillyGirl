@@ -612,7 +612,7 @@ func (tfm myFieldNameMapper) FieldName(_ reflect.Type, f reflect.StructField) st
 	if parser.IsIdentifier(tag) {
 		return tag
 	}
-	return uncapitalize(f.Name)
+	return f.Name //uncapitalize()
 }
 
 func uncapitalize(s string) string {
@@ -620,7 +620,7 @@ func uncapitalize(s string) string {
 }
 
 func (tfm myFieldNameMapper) MethodName(_ reflect.Type, m reflect.Method) string {
-	return uncapitalize(m.Name)
+	return m.Name //uncapitalize(m.Name)
 }
 
 func newVm(c *gin.Context) (*goja.Runtime, *goja.Object) {
